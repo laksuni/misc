@@ -1,0 +1,11 @@
+Light curtains are photoelectric safety devices used in industrial settings to create an invisible, infrared barrier that protects personnel from dangerous machinery and prevents equipment damage. When the light beam is interrupted, they instantly trigger a stop signal, making them essential for machine guarding, robot, and conveyor systems. 
+Key Applications and Uses:
+Machine Safeguarding: They act as alternatives to physical barriers, often used on presses, shears, and automated assembly lines to prevent operator injury.
+Access Control: Vertical mounting is common for perimeter guarding to detect if a person enters a hazardous area.
+Object Detection: Horizontal mounting or specialized configurations are used for detecting the presence of objects, such as in logistics and conveyor systems.
+Robot Safety: Used in robotic workstations to detect human approach and trigger a stop or slowdown of robotic movement.
+Advanced Features: Modern systems use "muting" to allow materials to pass through without triggering a stop, or "blanking" to ignore stationary objects within the zone. 
+Key Features:
+Finger/Hand Protection: High-resolution curtains can detect small body parts.
+Rapid Response: Instantly triggers a safe state when the beam is broken.
+Flexibility: Allows easy access for maintenance, unlike rigid, physical fencing. 

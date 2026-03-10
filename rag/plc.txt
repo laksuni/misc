@@ -1,0 +1,14 @@
+Programmable Logic Controllers (PLCs) are ruggedized industrial computers used to automate, monitor, and control machinery and manufacturing processes. They process input data (sensors, switches) to control output devices (motors, valves, lights) in real-time, handling tasks like assembly, motion control, packaging, and temperature regulation in harsh industrial environments. 
+Inductive Automation
+Inductive Automation
+
+Key Applications of PLCs
+Manufacturing and Assembly: Used extensively in automotive, food, and pharmaceutical industries to operate assembly lines, conveyor belts, robotic arms, and packaging machines.
+Process Control: Manages continuous processes, such as monitoring temperatures in furnaces, controlling pressure in pipelines, or maintaining chemical mixtures.
+Infrastructure and Utilities: Operates water treatment plants, pumping stations, traffic lights, power grids, and HVAC systems in large buildings.
+Logistics and Warehousing: Controls automated storage, retrieval systems, and parcel sorting, often tracking inventory in real-time.
+Machine Safety and Diagnostics: Monitors systems for malfunctions, triggers alarms, and ensures safe operation, such as in elevators or amusement park rides. 
+
+
+Why PLCs are Used
+PLCs are preferred for their durability against vibration, dust, and heat, as well as their reliability, modularity, and ease of programming. They allow industries to automate complex, repetitive tasks with high precision. 

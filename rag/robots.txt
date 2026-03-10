@@ -1,0 +1,16 @@
+Robots are primarily used to automate repetitive, dangerous, or high-precision tasks across industries, including manufacturing (welding, painting, assembly), logistics (sorting, transporting goods), healthcare (surgical assistance, rehabilitation), agriculture (harvesting, weeding), and defense (surveillance, reconnaissance). They also serve in domestic roles like cleaning, and in specialized, extreme environments such as space or underwater exploration. 
+
+Key Applications of Robots
+Manufacturing & Automotive: Used for high-speed assembly, welding, material handling, and painting.
+Logistics & Warehousing: Autonomous mobile robots (AMRs) sort, pack, and transport goods, enhancing efficiency.
+Healthcare & Medicine: Surgical robots enable minimally invasive procedures, while others assist in rehabilitation, sterilization, and patient care.
+Agriculture: Autonomous tractors, drones, and harvesting machines monitor crops and improve yield.
+Defense & Security: Unmanned aerial vehicles (drones) and ground robots handle reconnaissance, bomb disposal, and surveillance.
+Household & Service: Robotic vacuum cleaners, lawnmowers, and pool cleaners manage daily chores.
+Exploration: Remotely operated vehicles (ROVs) are used for deep-sea or space exploration. 
+
+Types of Robots
+Industrial Robots: Specialized for heavy-duty, high-precision tasks, such as in automotive factories.
+Collaborative Robots (Cobots): Designed to work safely alongside humans, often in smaller, agile setups.
+Service Robots: Assist humans in professional or personal tasks, ranging from cleaning to hospitality.
+Humanoid Robots: Mimic human form and behavior for research or service roles.

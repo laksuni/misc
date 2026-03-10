@@ -1,0 +1,9 @@
+Machine vision is used to automate visual inspection, robotic guidance, and data acquisition in industrial settings using cameras and AI, typically for quality control, sorting, and measurement. It increases speed, accuracy, and efficiency in manufacturing by identifying defects, reading codes, and guiding robots. Common applications include: 
+
+Quality Inspection: Detecting defects like cracks, misprints, or contamination in products, such as pharmaceutical blister packs or food items.
+Assembly and Guidance: Guiding robotic arms to pick, place, or align parts with micrometer precision.
+Identification and Tracking: Reading barcodes, QR codes, and OCR (optical character recognition) text for supply chain, logistics, and inventory management.
+Measurement and Gauging: Measuring dimensions to ensure products meet specifications.
+Safety and Automation: Enhancing safety in industrial environments and enabling autonomous driving by detecting pedestrians and obstacles. 
+
+Key industries benefiting from these systems include electronics, automotive, food & beverage, and pharmaceutical manufacturing. 

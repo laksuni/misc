@@ -1,0 +1,13 @@
+Analogue signals are used to represent, transmit, and process continuous physical data—such as sound, light, temperature, pressure, and position—by varying voltage, current, or frequency. They are essential in real-time applications, including audio recording/reproduction, radio/television broadcasting, sensor monitoring, and traditional telephony. 
+
+Key Applications of Analogue Signals
+Audio & Sound Systems: Microphones and speakers use analog signals to convert sound waves into electrical signals and back again.
+Sensor & Instrumentation: Devices like thermometers, pressure gauges, and light sensors produce continuous voltage or current (e.g., 4-20mA) to monitor environmental changes.
+Communication Systems: Radio (AM/FM) and traditional TV broadcasting use continuous waveforms to transmit information.
+Control Systems: Actuators and motor controllers use analog signals to adjust, for example, the position of a valve or the speed of a motor.
+Data Conversion: While many systems are now digital, analogue signals are still used in the initial stage of data acquisition, which are then converted into digital data for computer processing. 
+
+Advantages of Using Analogue Signals
+Real-time representation: They accurately mimic natural, continuously changing physical phenomena.
+High Density: They can represent an infinite range of values within a given range.
+Simplicity: Often easier to process for direct, simple applications.

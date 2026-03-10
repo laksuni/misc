@@ -1,0 +1,15 @@
+Conveyor systems are mechanical devices used to quickly and efficiently transport materials, goods, and products within manufacturing, logistics, and distribution facilities. They are primarily used to automate material handling, reduce labor costs, increase safety by minimizing heavy lifting, and improve workflow efficiency. 
+
+Key Uses of Conveyors:
+Manufacturing Production Lines: Moving products through assembly, processing, and packaging stages (e.g., in automotive plants).
+Logistics and Warehousing: Sorting, transporting, and loading packages, pallets, and boxes in distribution centers.
+Bulk Material Handling: Transporting loose materials like sand, coal, grain, or food products, often using specialized belt or screw conveyors.
+Automated Sorting: Directing products to specific locations in distribution centers.
+Vertical Transport: Moving items between different floor levels using vertical or spiral conveyors.
+Consumer Applications: Found in everyday settings like airport baggage handling and supermarket checkout counters. 
+
+Common Types and Their Purposes:
+Belt Conveyors: Versatile for transporting various items, including small or irregularly shaped products.
+Roller Conveyors: Ideal for moving boxes, pallets, and large, heavy items, either by gravity or powered.
+Chain/Slat Conveyors: Used for heavy-duty, bulky, or industrial items.
+Pneumatic/Screw Conveyors: Specialized for moving powders, granules, or bulk materials.
