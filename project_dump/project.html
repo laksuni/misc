@@ -1,0 +1,2140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulation Platform — Status &amp; Roadmap</title>
+<style>
+  :root {
+    --bg-0: #0d1220;
+    --bg-1: #141b2d;
+    --bg-2: #1c2538;
+    --bg-3: #263247;
+    --line: #3a4866;
+    --line-soft: #2a3549;
+    --ink-0: #ffffff;
+    --ink-1: #d4dce8;
+    --ink-2: #9aa8bf;
+    --accent: #5ddcf0;
+    --accent-2: #b8a1fc;
+    --green: #5ae594;
+    --orange: #fca55e;
+    --pink: #f785c3;
+    --red: #fa8a8a;
+    --yellow: #fccf46;
+    --blue: #7ab8ff;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --sans: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; padding: 0; background: var(--bg-0); color: var(--ink-0);
+    font-family: var(--sans); font-size: 15.5px; line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    background-image:
+      radial-gradient(ellipse 900px 550px at 15% -10%, rgba(93,220,240,.14), transparent 60%),
+      radial-gradient(ellipse 800px 550px at 90% 5%, rgba(184,161,252,.12), transparent 60%),
+      radial-gradient(ellipse 700px 450px at 50% 110%, rgba(90,229,148,.10), transparent 60%);
+    background-attachment: fixed;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code { font-family: var(--mono); font-size: 12.5px;
+    background: rgba(255,255,255,.10); padding: 2px 6px; border-radius: 4px;
+    color: #e8f0ff; }
+
+  nav.topnav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(13,18,32,.92); backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--line);
+  }
+  nav.topnav .inner {
+    max-width: 1280px; margin: 0 auto; padding: 14px 28px;
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  }
+  nav.topnav .brand {
+    font-weight: 700; font-size: 15px; color: var(--ink-0);
+    margin-right: 16px; letter-spacing: -.01em;
+  }
+  nav.topnav .brand span { color: var(--accent); }
+  nav.topnav a.lnk {
+    color: var(--ink-1); font-size: 13.5px; padding: 5px 11px;
+    border-radius: 6px; transition: all .15s ease; font-weight: 500;
+  }
+  nav.topnav a.lnk:hover { color: var(--ink-0); background: var(--bg-2); text-decoration: none; }
+  nav.topnav a.lnk.primary { color: var(--accent); font-weight: 600; }
+  nav.topnav a.lnk.primary:hover { background: rgba(93,220,240,.12); }
+
+  .container { max-width: 1280px; margin: 0 auto; padding: 40px 28px 100px; }
+
+  /* ---------- HERO ---------- */
+  .hero { text-align: left; padding: 24px 0 8px; }
+  .hero .badges { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 22px; }
+  .hero .badge-top {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--mono); font-size: 12px;
+    letter-spacing: 1.5px; text-transform: uppercase;
+    padding: 5px 14px; border-radius: 999px; font-weight: 600;
+  }
+  .badge-top.warn   { color: var(--yellow); border: 1px solid rgba(252,207,70,.45); background: rgba(252,207,70,.10); }
+  .badge-top.ok     { color: var(--green);  border: 1px solid rgba(90,229,148,.45); background: rgba(90,229,148,.10); }
+  .badge-top.accent { color: var(--accent); border: 1px solid rgba(93,220,240,.45); background: rgba(93,220,240,.10); }
+  .badge-top .dot {
+    width: 7px; height: 7px; border-radius: 50%; background: currentColor;
+  }
+  .hero h1 {
+    font-size: clamp(34px, 5vw, 54px); font-weight: 800; letter-spacing: -.02em;
+    margin: 0 0 16px; line-height: 1.08;
+    background: linear-gradient(135deg, #ffffff 0%, #5ddcf0 55%, #b8a1fc 100%);
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .hero p.lede {
+    color: var(--ink-1); font-size: 17.5px; max-width: 840px; margin: 0 0 16px;
+    line-height: 1.6;
+  }
+  .hero .pipeline {
+    display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    margin-top: 14px; font-family: var(--mono); font-size: 13px; color: var(--ink-1);
+  }
+  .hero .pipeline .step {
+    background: var(--bg-2); border: 1px solid var(--line); border-radius: 8px;
+    padding: 7px 13px; color: var(--ink-0); font-weight: 500;
+  }
+  .hero .pipeline .step strong { color: var(--accent); font-weight: 700; }
+  .hero .pipeline .sep { color: var(--ink-2); font-size: 15px; }
+
+  /* ---------- AT-A-GLANCE & HOWTO ---------- */
+  .howto {
+    margin: 28px 0 0; padding: 22px 26px;
+    background: linear-gradient(180deg, rgba(93,220,240,.08), transparent);
+    border: 1px solid rgba(93,220,240,.35); border-left: 4px solid var(--accent);
+    border-radius: 12px;
+  }
+  .howto h2 {
+    margin: 0 0 8px; font-size: 17px; color: var(--accent); font-weight: 700;
+    letter-spacing: -.01em;
+  }
+  .howto p { margin: 0 0 8px; color: var(--ink-1); font-size: 15px; }
+  .howto p:last-child { margin-bottom: 0; }
+  .howto ol { margin: 8px 0 0; padding-left: 22px; color: var(--ink-1); font-size: 15px; }
+  .howto ol li { margin: 4px 0; }
+  .howto strong { color: var(--ink-0); }
+
+  /* ---------- AI START GUIDE BANNER ---------- */
+  .ai-guide-banner {
+    margin: 32px 0 0; padding: 24px 26px;
+    background: linear-gradient(135deg, rgba(184,161,252,0.12), rgba(93,220,240,0.06));
+    border: 1px solid rgba(184,161,252,0.4); border-left: 4px solid var(--accent-2);
+    border-radius: 14px; position: relative; overflow: hidden;
+  }
+  .ai-guide-banner h2 {
+    margin: 0 0 10px; font-size: 18px; color: #d4c4ff; font-weight: 700;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .ai-guide-banner h2 .sparkle { color: var(--accent-2); font-size: 20px; }
+  .ai-guide-banner p { margin: 0 0 14px; color: var(--ink-1); font-size: 15px; line-height: 1.6; }
+  .ai-steps {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px; margin-top: 14px;
+  }
+  .ai-step-card {
+    background: var(--bg-0); border: 1px solid var(--line-soft);
+    border-radius: 10px; padding: 14px 16px; position: relative;
+  }
+  .ai-step-card .num {
+    font-family: var(--mono); font-size: 11px; font-weight: 800;
+    color: var(--accent-2); text-transform: uppercase; letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+  .ai-step-card .t { font-weight: 700; font-size: 14px; color: var(--ink-0); margin-bottom: 4px; }
+  .ai-step-card .d { font-size: 12.8px; color: var(--ink-2); line-height: 1.5; }
+  .ai-step-card code { font-size: 11.5px; color: var(--accent); }
+
+  /* ---------- GLANCE ---------- */
+  .glance {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 14px; margin: 36px 0 0;
+  }
+  .glance .col {
+    background: var(--bg-2); border: 1px solid var(--line); border-radius: 14px;
+    padding: 22px 22px 20px; position: relative; overflow: hidden;
+  }
+  .glance .col::before {
+    content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: var(--gl-color, var(--accent));
+  }
+  .glance .col.green   { --gl-color: var(--green);  }
+  .glance .col.yellow  { --gl-color: var(--yellow); }
+  .glance .col.gray    { --gl-color: var(--ink-2);  }
+  .glance .gl-head {
+    display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px;
+  }
+  .glance .gl-head .ic {
+    font-family: var(--mono); font-size: 18px; color: var(--gl-color);
+    font-weight: 700;
+  }
+  .glance .gl-head h3 {
+    margin: 0; font-size: 14px; text-transform: uppercase;
+    letter-spacing: 1.5px; font-weight: 700; color: var(--gl-color);
+  }
+  .glance ul { margin: 0; padding: 0; list-style: none; }
+  .glance li {
+    color: var(--ink-1); font-size: 14.5px; padding: 6px 0;
+    display: flex; align-items: baseline; gap: 10px;
+    border-bottom: 1px dashed var(--line-soft);
+  }
+  .glance li:last-child { border-bottom: 0; }
+  .glance li::before {
+    content: "·"; color: var(--gl-color); font-weight: 900;
+    font-size: 20px; line-height: 1; flex: none;
+    transform: translateY(-3px);
+  }
+  .glance li code { font-size: 12px; padding: 1px 5px; }
+  .glance .pk-ref {
+    display: inline-block; font-family: var(--mono); font-size: 10px;
+    font-weight: 700; letter-spacing: .5px;
+    padding: 1px 6px; border-radius: 4px;
+    background: rgba(255,255,255,.08); color: var(--ink-0);
+    margin-right: 6px;
+  }
+
+  /* ---------- TRY IT ---------- */
+  .tryit {
+    margin: 40px 0 0; background: linear-gradient(180deg, var(--bg-2), var(--bg-1));
+    border: 1px solid var(--line); border-radius: 16px; overflow: hidden;
+  }
+  .tryit .head {
+    padding: 18px 24px; border-bottom: 1px solid var(--line);
+    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+  }
+  .tryit .head h2 { margin: 0; font-size: 20px; font-weight: 700; }
+  .tryit .head .sub { color: var(--ink-2); font-size: 13.5px; }
+  .tryit .body {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+  }
+  @media (max-width: 780px) { .tryit .body { grid-template-columns: 1fr; } }
+  .tryit .half {
+    padding: 22px 24px;
+  }
+  .tryit .half + .half { border-left: 1px solid var(--line); }
+  @media (max-width: 780px) {
+    .tryit .half + .half { border-left: 0; border-top: 1px solid var(--line); }
+  }
+  .tryit h4 {
+    margin: 0 0 10px; font-size: 12px; text-transform: uppercase;
+    letter-spacing: 1.5px; color: var(--ink-2); font-weight: 700;
+  }
+  .tryit pre {
+    margin: 0; padding: 14px 16px; background: var(--bg-0);
+    border: 1px solid var(--line-soft); border-radius: 8px;
+    font-family: var(--mono); font-size: 12.8px; line-height: 1.7;
+    color: var(--ink-1); overflow-x: auto;
+  }
+  .tryit pre .prompt { color: var(--green); }
+  .tryit pre .comment { color: var(--ink-2); font-style: italic; }
+  .tryit pre .path { color: var(--accent); }
+  .tryit ol {
+    margin: 0; padding-left: 20px; color: var(--ink-1); font-size: 14.5px;
+  }
+  .tryit ol li { margin: 6px 0; }
+  .tryit .note {
+    margin-top: 12px; font-size: 13px; color: var(--ink-2);
+  }
+
+  /* ---------- SECTIONS ---------- */
+  section { margin: 72px 0; scroll-margin-top: 90px; }
+  .section-head { margin-bottom: 26px; }
+  .section-head .kicker {
+    font-family: var(--mono); font-size: 12.5px; letter-spacing: 2px;
+    text-transform: uppercase; color: var(--accent); margin-bottom: 8px;
+    font-weight: 600;
+  }
+  .section-head h2 {
+    font-size: 28px; font-weight: 700; margin: 0; letter-spacing: -.01em;
+    color: var(--ink-0);
+  }
+  .section-head p { color: var(--ink-1); margin: 10px 0 0; max-width: 860px;
+    font-size: 15.5px; }
+
+  /* ---------- TIMELINE ---------- */
+  .timeline { position: relative; padding-left: 36px; margin-top: 4px; }
+  .timeline::before {
+    content: ""; position: absolute; left: 11px; top: 10px; bottom: 10px;
+    width: 2px; background: linear-gradient(180deg, var(--green), var(--accent), var(--ink-2));
+    border-radius: 2px;
+  }
+  .tl-item { position: relative; padding: 0 0 24px; }
+  .tl-item:last-child { padding-bottom: 0; }
+  .tl-item::before {
+    content: ""; position: absolute; left: -32px; top: 5px;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--bg-0); border: 2px solid var(--tl-color, var(--accent));
+  }
+  .tl-item.done::before    { background: var(--tl-color, var(--green)); }
+  .tl-item.now::before     {
+    background: var(--tl-color, var(--accent));
+    box-shadow: 0 0 0 4px rgba(93,220,240,.20);
+  }
+  .tl-item.now   { --tl-color: var(--accent); }
+  .tl-item.done  { --tl-color: var(--green); }
+  .tl-item.future{ --tl-color: var(--ink-2); }
+  .tl-item .when {
+    font-family: var(--mono); font-size: 11.5px;
+    text-transform: uppercase; letter-spacing: 1.3px;
+    color: var(--tl-color, var(--ink-2)); font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .tl-item h4 { margin: 0 0 4px; font-size: 16px; font-weight: 700;
+    color: var(--ink-0); }
+  .tl-item p { margin: 0; color: var(--ink-1); font-size: 14.5px; }
+
+  /* ---------- ROADMAP ---------- */
+  .roadmap { display: grid; gap: 12px; }
+  .step-card {
+    background: var(--bg-2); border: 1px solid var(--line); border-radius: 14px;
+    padding: 18px 22px; position: relative; overflow: hidden;
+    display: grid; grid-template-columns: auto 1fr auto; gap: 18px; align-items: start;
+  }
+  .step-card::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+    background: var(--step-color, var(--accent));
+  }
+  .step-card.p1 { --step-color: #5ae594; }
+  .step-card.p2 { --step-color: #fccf46; }
+  .step-card.p3 { --step-color: #fca55e; }
+  .step-card.p4 { --step-color: #f785c3; }
+  .step-card.p5 { --step-color: #b8a1fc; }
+  .step-card.p6 { --step-color: #7ab8ff; }
+  .step-card.p7 { --step-color: #fa8a8a; }
+  .step-card.p8 { --step-color: #5ddcf0; }
+  .step-card .num {
+    width: 36px; height: 36px; border-radius: 9px;
+    background: var(--bg-3); border: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 14px; font-weight: 700;
+    color: var(--step-color, var(--accent));
+  }
+  .step-card .body h4 { margin: 0 0 4px; font-size: 16px; font-weight: 700;
+    color: var(--ink-0); }
+  .step-card .body .why { color: var(--ink-2); font-size: 12.5px; margin: 0 0 8px;
+    font-family: var(--mono); font-weight: 500; }
+  .step-card .body p { margin: 0; color: var(--ink-1); font-size: 14px; }
+  .step-card .meta {
+    font-family: var(--mono); font-size: 10.5px; text-transform: uppercase;
+    letter-spacing: 1px; color: var(--step-color, var(--accent));
+    padding: 4px 11px; border: 1px solid; border-radius: 999px;
+    border-color: var(--step-color, var(--accent)); white-space: nowrap;
+    font-weight: 700;
+    display: flex; gap: 6px; align-items: center;
+  }
+  .step-card .meta .pk { font-weight: 800; }
+  @media (max-width: 700px) {
+    .step-card { grid-template-columns: auto 1fr; }
+    .step-card .meta { grid-column: 2; justify-self: start; }
+  }
+
+  /* ---------- WORK PACKETS ---------- */
+  .order {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px; margin-bottom: 26px;
+  }
+  .order-step {
+    background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px;
+    padding: 18px 22px; position: relative; overflow: hidden;
+  }
+  .order-step::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: var(--lo-color, var(--accent));
+  }
+  .order-step .step-num {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: 1.5px;
+    text-transform: uppercase; font-weight: 700;
+    color: var(--lo-color, var(--accent)); margin-bottom: 6px;
+  }
+  .order-step .step-title { color: var(--ink-0); font-weight: 700; font-size: 16px; }
+  .order-step .step-sub { color: var(--ink-2); font-size: 13px; margin-top: 4px; }
+  .order-step.s1 { --lo-color: var(--green); }
+  .order-step.s2 { --lo-color: var(--yellow); }
+  .order-step.s3 { --lo-color: var(--ink-2); }
+
+  .packets { display: grid; gap: 28px; }
+  .packet {
+    background: linear-gradient(180deg, var(--bg-2), var(--bg-1));
+    border: 1px solid var(--line); border-radius: 16px;
+    position: relative; overflow: hidden; padding: 0;
+    scroll-margin-top: 90px;
+  }
+  .packet::before {
+    content: ""; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+    background: var(--pk-color, var(--accent));
+  }
+  .packet.p1 { --pk-color: #5ddcf0; }
+  .packet.p2 { --pk-color: #fccf46; }
+  .packet.p3 { --pk-color: #f785c3; }
+  .packet.p4 { --pk-color: #5ae594; }
+  .packet .pk-head {
+    display: grid; grid-template-columns: auto 1fr auto; gap: 16px;
+    align-items: center; padding: 20px 24px 16px;
+    border-bottom: 1px dashed var(--line-soft);
+  }
+  @media (max-width: 620px) {
+    .packet .pk-head { grid-template-columns: auto 1fr; }
+    .packet .pk-head .pk-effort { grid-column: 2; justify-self: start; }
+  }
+  .packet .pk-id {
+    font-family: var(--mono); font-size: 15px; font-weight: 800;
+    letter-spacing: 1px; color: var(--bg-0);
+    background: var(--pk-color); padding: 7px 13px; border-radius: 8px;
+    white-space: nowrap;
+  }
+  .packet .pk-title h3 {
+    margin: 0; font-size: 21px; color: var(--ink-0); font-weight: 700;
+    letter-spacing: -.01em;
+  }
+  .packet .pk-title .focus {
+    font-size: 13.5px; color: var(--ink-2); margin-top: 3px;
+  }
+  .packet .pk-effort {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 1px;
+    text-transform: uppercase; font-weight: 700;
+    color: var(--pk-color); border: 1px solid var(--pk-color);
+    border-radius: 999px; padding: 5px 12px; white-space: nowrap;
+  }
+  .packet .mission {
+    padding: 16px 24px 18px; color: var(--ink-1); font-size: 15px;
+    border-bottom: 1px dashed var(--line-soft);
+    line-height: 1.6;
+  }
+  .packet .mission strong { color: var(--ink-0); }
+  .packet .pk-body {
+    display: grid; grid-template-columns: 1fr 1.35fr;
+  }
+  @media (max-width: 780px) { .packet .pk-body { grid-template-columns: 1fr; } }
+  .packet .pk-col { padding: 18px 24px 20px; }
+  .packet .pk-col + .pk-col { border-left: 1px solid var(--line-soft); }
+  @media (max-width: 780px) {
+    .packet .pk-col + .pk-col {
+      border-left: 0; border-top: 1px solid var(--line-soft);
+    }
+  }
+  .packet .pk-col h4 {
+    margin: 0 0 12px; font-size: 11.5px; text-transform: uppercase;
+    letter-spacing: 1.5px; color: var(--pk-color); font-weight: 700;
+  }
+  .packet .owned {
+    list-style: none; padding: 0; margin: 0;
+    font-family: var(--mono); font-size: 12.5px; line-height: 1.8;
+    color: var(--ink-1);
+  }
+  .packet .owned li { padding: 1px 0; }
+  .packet .owned li::before {
+    content: "› "; color: var(--pk-color); font-weight: 700; margin-right: 4px;
+  }
+  .packet .owned li code { font-size: 12px; background: transparent; padding: 0; }
+  .packet .owned li .note {
+    color: var(--ink-2); font-style: italic; font-size: 11.5px;
+    margin-left: 4px;
+  }
+  .packet .dels { list-style: none; padding: 0; margin: 0; }
+  .packet .dels > li {
+    display: grid; grid-template-columns: auto 1fr auto; gap: 10px;
+    align-items: baseline;
+    padding: 8px 0; color: var(--ink-1); font-size: 14px;
+    border-bottom: 1px dashed var(--line-soft);
+  }
+  .packet .dels > li:last-child { border-bottom: 0; }
+  .packet .dels > li::before {
+    content: "☐"; color: var(--pk-color); font-size: 17px;
+    line-height: 1; grid-column: 1;
+  }
+  .packet .dels > li .lbl { grid-column: 2; }
+  .packet .dels > li .lbl strong { color: var(--ink-0); font-weight: 600; }
+  .packet .dels > li .lbl .sub {
+    display: block; color: var(--ink-2); font-size: 12.5px; margin-top: 2px;
+  }
+  .packet .dels > li .eff {
+    grid-column: 3; font-family: var(--mono); font-size: 10.5px;
+    color: var(--ink-2); white-space: nowrap;
+  }
+
+  /* ---------- AI PROMPT FIELD STYLES ---------- */
+  .ai-prompt-container {
+    margin: 0 24px 20px;
+    background: var(--bg-0);
+    border: 1px solid var(--line-soft);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .ai-prompt-header {
+    background: var(--bg-3);
+    padding: 10px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--line-soft);
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .ai-prompt-header .title {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .ai-prompt-header .badge {
+    font-size: 10.5px;
+    background: rgba(93,220,240,0.15);
+    color: var(--accent);
+    padding: 2px 8px;
+    border-radius: 4px;
+    border: 1px solid rgba(93,220,240,0.3);
+    font-family: var(--mono);
+  }
+  .copy-btn {
+    background: var(--pk-color, var(--accent));
+    color: var(--bg-0);
+    border: none;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .copy-btn:hover {
+    filter: brightness(1.18);
+    transform: translateY(-1px);
+  }
+  .copy-btn:active {
+    transform: translateY(0);
+  }
+  .ai-prompt-body {
+    max-height: 280px;
+    overflow-y: auto;
+    padding: 14px 16px;
+    background: #090d18;
+  }
+  .ai-prompt-body::-webkit-scrollbar {
+    width: 6px;
+  }
+  .ai-prompt-body::-webkit-scrollbar-track {
+    background: var(--bg-0);
+  }
+  .ai-prompt-body::-webkit-scrollbar-thumb {
+    background: var(--line);
+    border-radius: 4px;
+  }
+  .ai-prompt-text {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.65;
+    color: #c0cdf0;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .packet .pk-foot {
+    padding: 14px 24px 18px; border-top: 1px dashed var(--line-soft);
+    display: flex; flex-wrap: wrap; gap: 10px 26px; font-size: 13px;
+    align-items: baseline;
+  }
+  .packet .pk-foot .item {
+    display: flex; align-items: baseline; gap: 8px;
+  }
+  .packet .pk-foot .lbl {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: 1.2px;
+    text-transform: uppercase; color: var(--ink-2); font-weight: 700;
+  }
+  .packet .pk-foot .val { color: var(--ink-1); }
+  .packet .pk-foot .val.ok   { color: var(--green); font-weight: 600; }
+  .packet .pk-foot .val.warn { color: var(--yellow); font-weight: 600; }
+  .packet .pk-foot .val.mut  { color: var(--ink-2); }
+  .packet .pk-foot .val.pk   {
+    font-family: var(--mono); font-weight: 700; padding: 1px 7px;
+    border-radius: 4px; background: rgba(255,255,255,.06);
+  }
+
+  /* ---------- SLUG EXPLAINER ---------- */
+  .slugs {
+    background: linear-gradient(180deg, var(--bg-2), var(--bg-1));
+    border: 1px solid var(--line); border-radius: 16px;
+    padding: 28px 28px 24px; position: relative; overflow: hidden;
+  }
+  .slugs::before {
+    content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2), var(--pink));
+  }
+  .slugs .split {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+    margin-top: 18px;
+  }
+  @media (max-width: 720px) { .slugs .split { grid-template-columns: 1fr; } }
+  .slugs .panel {
+    background: var(--bg-0); border: 1px solid var(--line-soft);
+    border-radius: 10px; padding: 18px 20px;
+  }
+  .slugs .panel h4 {
+    margin: 0 0 12px; font-size: 12px; text-transform: uppercase;
+    letter-spacing: 1.5px; font-weight: 700;
+  }
+  .slugs .panel.before h4 { color: var(--red); }
+  .slugs .panel.after h4 { color: var(--green); }
+  .slugs .panel p {
+    margin: 0 0 8px; color: var(--ink-1); font-size: 14px;
+  }
+  .slugs .panel code { font-size: 12px; word-break: break-all; }
+  .slugs .why {
+    margin-top: 18px; padding-top: 18px; border-top: 1px dashed var(--line);
+  }
+  .slugs .why h4 {
+    margin: 0 0 8px; font-size: 14px; color: var(--accent);
+  }
+  .slugs .why p {
+    margin: 0; color: var(--ink-1); font-size: 14.5px;
+  }
+
+  /* ---------- ARCHITECTURE ---------- */
+  .arch {
+    background: linear-gradient(180deg, var(--bg-1), var(--bg-0));
+    border: 1px solid var(--line); border-radius: 18px; padding: 28px 24px;
+  }
+  .layer {
+    border: 1px dashed var(--line); border-radius: 14px;
+    padding: 16px 18px 20px; position: relative;
+    background: rgba(255,255,255,.02);
+  }
+  .layer-label {
+    font-family: var(--mono); font-size: 11.5px; letter-spacing: 2px;
+    text-transform: uppercase; color: var(--ink-2); margin-bottom: 14px;
+    font-weight: 600;
+  }
+  .layer-body {
+    display: flex; flex-wrap: wrap; gap: 12px;
+    justify-content: center; align-items: stretch;
+  }
+  .node {
+    background: var(--bg-2); border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px 18px; text-align: center; min-width: 170px;
+    display: flex; flex-direction: column; justify-content: center;
+    transition: all .15s ease;
+  }
+  .node:hover { border-color: var(--ink-2); transform: translateY(-1px); }
+  .node .t { font-weight: 700; font-size: 14px; color: var(--ink-0); }
+  .node .s { font-size: 11.5px; color: var(--ink-1); margin-top: 4px;
+    font-family: var(--mono); letter-spacing: .3px; }
+  .node-clients   { border-color: rgba(184,161,252,.55); background: linear-gradient(180deg, rgba(184,161,252,.14), rgba(184,161,252,.03)); }
+  .node-clients .t { color: #d4c4ff; }
+  .node-gateway   { border-color: rgba(252,165,94,.6);  background: linear-gradient(180deg, rgba(252,165,94,.14), rgba(252,165,94,.03)); }
+  .node-gateway .t { color: #ffc590; }
+  .node-control   { border-color: rgba(93,220,240,.6);  background: linear-gradient(180deg, rgba(93,220,240,.14), rgba(93,220,240,.03)); }
+  .node-control .t { color: #8fecff; }
+  .node-bus       { border-color: rgba(250,138,138,.55); background: linear-gradient(180deg, rgba(250,138,138,.14), rgba(250,138,138,.03)); }
+  .node-bus .t { color: #ffb3b3; }
+  .node-daemon    { border-color: rgba(252,207,70,.55);  background: linear-gradient(180deg, rgba(252,207,70,.14), rgba(252,207,70,.03)); }
+  .node-daemon .t { color: #ffe082; }
+  .node-worker    { border-color: rgba(90,229,148,.55); background: linear-gradient(180deg, rgba(90,229,148,.14), rgba(90,229,148,.03)); min-width: 150px; }
+  .node-worker .t { color: #9df5c0; }
+  .node-dashed { border-style: dashed; opacity: .95; }
+  .node-tag {
+    position: absolute; top: -9px; right: 12px;
+    font-family: var(--mono); font-size: 10px; font-weight: 700;
+    letter-spacing: 1px; text-transform: uppercase;
+    padding: 2px 8px; border-radius: 999px;
+  }
+  .node-tag.new {
+    color: var(--bg-0); background: var(--green);
+  }
+
+  .connector {
+    display: flex; flex-direction: column; align-items: center;
+    padding: 8px 0; gap: 2px;
+  }
+  .connector .line {
+    width: 2px; height: 22px;
+    background: linear-gradient(180deg, var(--ink-2), var(--accent));
+    border-radius: 2px; position: relative;
+  }
+  .connector .line::after {
+    content: ""; position: absolute; bottom: -1px; left: 50%;
+    transform: translateX(-50%);
+    border-left: 5px solid transparent; border-right: 5px solid transparent;
+    border-top: 7px solid var(--accent);
+  }
+  .connector .label {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 1px;
+    color: var(--ink-2); text-transform: uppercase; font-weight: 600;
+    background: var(--bg-0); padding: 4px 11px; border-radius: 999px;
+    border: 1px solid var(--line); margin-top: 2px;
+  }
+
+  /* ---------- FEATURES ---------- */
+  .feature-tabs {
+    display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 22px;
+  }
+  .ftab {
+    background: var(--bg-2); border: 1px solid var(--line); color: var(--ink-1);
+    padding: 8px 15px; border-radius: 999px; cursor: pointer; font-size: 13px;
+    font-family: var(--sans); transition: all .15s ease; user-select: none;
+    display: inline-flex; align-items: center; gap: 8px; font-weight: 500;
+    border-width: 1px;
+  }
+  .ftab:hover { color: var(--ink-0); border-color: var(--ink-2); background: var(--bg-3); }
+  .ftab.active { color: var(--bg-0); font-weight: 700; }
+  .ftab .swatch {
+    width: 8px; height: 8px; border-radius: 50%; background: currentColor;
+  }
+  .ftab[data-status="all"].active     { background: var(--ink-0); border-color: var(--ink-0); }
+  .ftab[data-status="shipped"].active { background: var(--green); border-color: var(--green); }
+  .ftab[data-status="progress"].active{ background: var(--yellow); border-color: var(--yellow); }
+  .ftab[data-status="planned"].active { background: var(--ink-2); border-color: var(--ink-2); }
+
+  .grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 14px;
+  }
+  .card {
+    background: var(--bg-2); border: 1px solid var(--line); border-radius: 14px;
+    padding: 20px; transition: all .2s ease; position: relative; overflow: hidden;
+  }
+  .card:hover { transform: translateY(-2px); border-color: var(--ink-2);
+    box-shadow: 0 10px 28px rgba(0,0,0,.45); }
+  .card::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+    background: var(--cat-color, var(--accent)); opacity: .95;
+  }
+  .card .cat-label {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 1.5px;
+    text-transform: uppercase; color: var(--cat-color, var(--accent));
+    font-weight: 700; margin-bottom: 8px;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  }
+  .card .status-pill {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 1px;
+    padding: 3px 9px; border-radius: 999px; text-transform: uppercase;
+    font-weight: 700;
+  }
+  .card .status-pill.shipped  { background: rgba(90,229,148,.20); color: #9df5c0; border: 1px solid rgba(90,229,148,.5); }
+  .card .status-pill.progress { background: rgba(252,207,70,.20); color: #ffe082; border: 1px solid rgba(252,207,70,.5); }
+  .card .status-pill.planned  { background: rgba(154,168,191,.20); color: var(--ink-1); border: 1px solid rgba(154,168,191,.5); }
+  .card h3 { margin: 0 0 8px; font-size: 16.5px; font-weight: 700;
+    color: var(--ink-0); }
+  .card p { margin: 0 0 10px; color: var(--ink-1); font-size: 14px; }
+  .card ul { margin: 8px 0 0; padding-left: 20px; color: var(--ink-1); font-size: 13.5px; }
+  .card ul li { margin: 3px 0; }
+
+  /* ---------- TREE ---------- */
+  .tree-wrap {
+    background: var(--bg-2); border: 1px solid var(--line);
+    border-radius: 14px; padding: 22px 24px; overflow-x: auto;
+  }
+  .tree {
+    font-family: var(--mono); font-size: 12.6px; line-height: 1.75;
+    color: var(--ink-1); white-space: pre; margin: 0;
+    min-width: 720px;
+  }
+  .tree .dir      { color: var(--accent); font-weight: 700; }
+  .tree .file     { color: var(--ink-1); }
+  .tree .root     { color: var(--ink-0); font-weight: 700; }
+  .tree .comment  { color: var(--ink-2); font-style: italic; }
+  .tree .new      { color: var(--green); font-weight: 600; }
+  .tree .new-dir  { color: var(--green); font-weight: 700; }
+  .tree .new-tag  { color: var(--green); font-style: italic; font-size: 11.5px; }
+  .tree .planned-file { color: var(--yellow); font-weight: 500; }
+  .tree .planned-dir  { color: var(--yellow); font-weight: 700;
+    text-decoration: underline; text-decoration-style: dashed;
+    text-underline-offset: 3px; }
+  .tree .planned-tag  { color: var(--ink-2); font-style: italic; font-size: 11.5px; }
+
+  /* ---------- ISSUES ---------- */
+  .issues { display: flex; flex-direction: column; gap: 12px; }
+  .issue {
+    background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px;
+    padding: 18px 20px; display: grid; grid-template-columns: auto 1fr; gap: 16px;
+    align-items: start;
+  }
+  .issue .tag {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: 1.2px;
+    text-transform: uppercase; padding: 4px 10px; border-radius: 6px;
+    font-weight: 700; height: fit-content;
+  }
+  .issue .tag.bug    { background: rgba(250,138,138,.20); color: #ffb3b3; border: 1px solid rgba(250,138,138,.5); }
+  .issue .tag.design { background: rgba(252,207,70,.20); color: #ffe082; border: 1px solid rgba(252,207,70,.5); }
+  .issue .tag.note   { background: rgba(122,184,255,.20); color: #a5cfff; border: 1px solid rgba(122,184,255,.5); }
+  .issue .tag.fixed  { background: rgba(90,229,148,.20); color: #9df5c0; border: 1px solid rgba(90,229,148,.5); }
+  .issue h4 { margin: 0 0 6px; font-size: 15px; font-weight: 700;
+    color: var(--ink-0); }
+  .issue p  { margin: 0; color: var(--ink-1); font-size: 14px; }
+  .issue p + p { margin-top: 8px; }
+  .issue .owner {
+    display: inline-block; font-family: var(--mono); font-size: 10.5px;
+    font-weight: 700; padding: 1px 7px; border-radius: 4px;
+    background: rgba(255,255,255,.08); color: var(--ink-0);
+    margin-left: 8px; vertical-align: middle;
+  }
+
+  /* ---------- FOOTER ---------- */
+  footer {
+    text-align: center; color: var(--ink-2); font-size: 13.5px;
+    padding: 60px 0 20px; border-top: 1px solid var(--line); margin-top: 60px;
+  }
+  footer strong { color: var(--ink-1); }
+  footer .updated {
+    margin-top: 12px; font-family: var(--mono); font-size: 12px;
+  }
+
+  @media (max-width: 640px) {
+    .container { padding: 24px 16px 60px; }
+    nav.topnav .inner { padding: 12px 16px; }
+    .node { min-width: 130px; padding: 12px 14px; }
+    .node .t { font-size: 13px; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <div class="inner">
+    <div class="brand">Sim<span>Platform</span></div>
+    <a class="lnk primary" href="#packets">→ Find your packet</a>
+    <a class="lnk" href="#ai-guide">AI Prompts</a>
+    <a class="lnk" href="#tryit">Try it</a>
+    <a class="lnk" href="#milestones">What's done</a>
+    <a class="lnk" href="#next">Roadmap</a>
+    <a class="lnk" href="#slugs">Slugs</a>
+    <a class="lnk" href="#architecture">Architecture</a>
+    <a class="lnk" href="#features">Features</a>
+    <a class="lnk" href="#structure">Codebase</a>
+    <a class="lnk" href="#issues">Issues</a>
+  </div>
+</nav>
+
+<div class="container">
+
+  <!-- ============== HERO ============== -->
+  <div class="hero">
+    <div class="badges">
+      <span class="badge-top ok"><span class="dot"></span>CODESYS verified · Oct 2026</span>
+      <span class="badge-top accent"><span class="dot"></span>Session slugs shipped</span>
+      <span class="badge-top warn"><span class="dot"></span>4 work packets · AI-Assisted</span>
+    </div>
+    <h1>Simulation Platform</h1>
+    <p class="lede">
+      A pluggable platform that hosts any number of independent process simulations
+      and exposes every running session through a <strong>single OPC UA endpoint</strong>.
+      CODESYS, SCADA, or any standard OPC UA client browses one server and sees each
+      session as its own folder — stable, named, and unaffected by restarts.
+    </p>
+    <div class="pipeline">
+      <span class="step"><strong>Simulation</strong> plugin</span>
+      <span class="sep">→</span>
+      <span class="step"><strong>Worker</strong> process</span>
+      <span class="sep">→</span>
+      <span class="step"><strong>Gateway</strong> aggregates</span>
+      <span class="sep">→</span>
+      <span class="step"><strong>CODESYS</strong> browses</span>
+    </div>
+  </div>
+
+  <!-- ============== HOW TO USE THIS PAGE ============== -->
+  <div class="howto">
+    <h2>How to use this page</h2>
+    <p>
+      The platform already works end-to-end with CODESYS. What's left is four
+      independent work packets — one per person — that turn it into something
+      a student or operator can run without a terminal, install on a fresh
+      server, and trust under load.
+    </p>
+    <ol>
+      <li><strong>Jump to <a href="#packets">Find your packet</a>.</strong> Read the four packets. Pick the one that matches your strengths, or agree as a group on who takes which.</li>
+      <li><strong>Read the mission and the deliverables.</strong> Each packet says what "done" looks like and how long each piece should take.</li>
+      <li><strong>Follow the order strip.</strong> Packet 1 unblocks the rest. Packets 2 and 3 then run side by side. Packet 4 finishes last.</li>
+      <li><strong>Check "You own" before touching files.</strong> Four packets are designed to touch disjoint files — if you're editing something outside your list, check with the owner first.</li>
+    </ol>
+  </div>
+
+  <!-- ============== AI ASSISTANT START GUIDE ============== -->
+  <div class="ai-guide-banner" id="ai-guide">
+    <h2><span class="sparkle">✦</span> How to start your Work Package AI-Assisted</h2>
+    <p>
+      Each work packet below includes a complete, pre-configured system prompt designed for LLM coding assistants (Cursor, Claude 3.5 Sonnet, ChatGPT, Copilot, or Gemini). Follow these steps to kick off your packet with an AI assistant in seconds:
+    </p>
+    <div class="ai-steps">
+      <div class="ai-step-card">
+        <div class="num">Step 1</div>
+        <div class="t">Attach Context</div>
+        <div class="d">Attach the file <code>project_dump.md</code> to your new AI Chat session. It contains full source code, schemas, and architecture context.</div>
+      </div>
+      <div class="ai-step-card">
+        <div class="num">Step 2</div>
+        <div class="t">Copy Packet Prompt</div>
+        <div class="d">Find your packet below (P1–P4) and click the <strong>Copy AI Prompt</strong> button on the top right of the code block.</div>
+      </div>
+      <div class="ai-step-card">
+        <div class="num">Step 3</div>
+        <div class="t">Paste &amp; Execute</div>
+        <div class="d">Paste the prompt into your AI chat. The AI will adopt its assigned role, respect file boundaries, and execute deliverables step-by-step.</div>
+      </div>
+      <div class="ai-step-card">
+        <div class="num">Step 4</div>
+        <div class="t">Iterative Verification</div>
+        <div class="d">Review code diffs after each step. Make sure your assistant only edits files listed under your packet's <code>You own</code> section!</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============== GLANCE ============== -->
+  <div class="glance">
+    <div class="col green">
+      <div class="gl-head"><span class="ic">✓</span><h3>What works today</h3></div>
+      <ul>
+        <li>End-to-end CODESYS integration — verified with a real PLC</li>
+        <li>Session slugs give stable OPC UA paths across restarts</li>
+        <li>Identity split — <code>session_id</code> (UUID) vs <code>session_name</code> (slug)</li>
+        <li>Session create/stop via REST API and <code>stack.sh</code></li>
+        <li>Worker process dashboards render live process data</li>
+        <li>Session list HTML page at <code>/</code></li>
+      </ul>
+    </div>
+    <div class="col yellow">
+      <div class="gl-head"><span class="ic">◐</span><h3>Packet 1 — the browser UI</h3></div>
+      <ul>
+        <li><span class="pk-ref">P1</span>Dashboard proxy — serve worker pages at <code>/s/&lt;slug&gt;/</code></li>
+        <li><span class="pk-ref">P1</span>Session detail page with stop button</li>
+        <li><span class="pk-ref">P1</span>Create-session form in the browser UI</li>
+        <li><span class="pk-ref">P1</span>WebSocket consumer for live list updates</li>
+        <li><span class="pk-ref">P1</span>DB reconciliation for stale rows</li>
+      </ul>
+    </div>
+    <div class="col gray">
+      <div class="gl-head"><span class="ic">○</span><h3>Packets 2 · 3 · 4</h3></div>
+      <ul>
+        <li><span class="pk-ref">P2</span>Systemd units, install scripts, firewall</li>
+        <li><span class="pk-ref">P2</span>Handover docs and quickstart</li>
+        <li><span class="pk-ref">P3</span>Optional per-session OPC UA credentials (opt-in)</li>
+        <li><span class="pk-ref">P3</span>Rate limiting and concurrent caps</li>
+        <li><span class="pk-ref">P4</span>Multi-session load test at N≈100</li>
+        <li><span class="pk-ref">P4</span>Plugin authoring guide</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ============== TRY IT ============== -->
+  <div class="tryit" id="tryit">
+    <div class="head">
+      <h2>Try it now</h2>
+      <span class="sub">Fresh Ubuntu 22.04 server, five minutes</span>
+    </div>
+    <div class="body">
+      <div class="half">
+        <h4>On the server</h4>
+<pre><span class="prompt">$</span> git clone &lt;repo&gt; cip-sim && cd cip-sim
+<span class="prompt">$</span> python3.11 -m venv .venv
+<span class="prompt">$</span> source .venv/bin/activate
+<span class="prompt">$</span> pip install -r requirements.txt
+<span class="prompt">$</span> cp .env.example .env
+<span class="prompt">$</span> nano .env                <span class="comment"># set SERVER_IP, GATEWAY_PUBLIC_HOST</span>
+<span class="prompt">$</span> python manage.py migrate
+<span class="prompt">$</span> python manage.py sync_catalog
+<span class="prompt">$</span> ./scripts/stack.sh up --slug cip_live</pre>
+        <p class="note">
+          The <code>--slug cip_live</code> argument gives the session a stable
+          OPC UA folder name. Re-run with the same slug to restart it without
+          touching the CODESYS project.
+        </p>
+      </div>
+      <div class="half">
+        <h4>In CODESYS</h4>
+        <ol>
+          <li>Add an OPC UA Data Source:
+            <code>opc.tcp://&lt;server&gt;:8080/gateway/</code></li>
+          <li>Browse <span class="path">Objects → Gateway → Sessions → cip_live</span></li>
+          <li>Read <code>Measurements.LevelPercent</code> — should be 0.0</li>
+          <li>Write <code>Commands.WaterValveCmd = 1</code></li>
+          <li>Watch <code>LevelPercent</code> climb towards 40</li>
+        </ol>
+        <p class="note">
+          The Data Sources tree survives session restarts because the slug
+          stays the same. No more re-browsing after every <code>stack.sh reset</code>.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============== MILESTONES ============== -->
+  <section id="milestones">
+    <div class="section-head">
+      <div class="kicker">What's done</div>
+      <h2>Shipped, in order</h2>
+      <p>Six milestones landed. The platform runs end-to-end with a real PLC today.
+         What remains is UI polish, deployment, hardening, and documentation —
+         that's the four work packets below.</p>
+    </div>
+
+    <div class="timeline">
+
+      <div class="tl-item done">
+        <div class="when">Oct 2026 · Latest</div>
+        <h4>Dashboard scaffold + template infrastructure</h4>
+        <p>Django dashboard app, base template, session list page at <code>/</code>,
+           <code>http_port</code> plumbing from worker → consumer → model. Ready for
+           the proxy view and detail page.</p>
+      </div>
+
+      <div class="tl-item done">
+        <div class="when">Oct 2026</div>
+        <h4>Session identity split</h4>
+        <p>The wire protocol now carries <code>session_id</code> (UUID) and
+           <code>session_name</code> (slug-or-UUID) separately. Events are
+           unambiguous even when a slug is reused. Fixed a class of races in the
+           reclaim flow.</p>
+      </div>
+
+      <div class="tl-item done">
+        <div class="when">Oct 2026</div>
+        <h4>Session slugs</h4>
+        <p>CODESYS Data Sources bake the OPC UA path into generated struct names,
+           so a fresh UUID invalidates every reference. Slugs replace the UUID in
+           the OPC UA tree with a stable, human-readable identifier. Data Sources
+           survive re-creations.</p>
+      </div>
+
+      <div class="tl-item done">
+        <div class="when">Oct 2026</div>
+        <h4>CODESYS end-to-end integration verified</h4>
+        <p>A real CODESYS soft PLC browses the gateway, reads measurements, and
+           writes commands that change physics. This was the highest-risk unknown;
+           it's now the strongest part of the platform.</p>
+      </div>
+
+      <div class="tl-item done">
+        <div class="when">Oct 2026</div>
+        <h4>Redis bridge, port allocator, worker manager — hardened</h4>
+        <p>XAUTOCLAIM for abandoned messages, atomic <code>HSETNX</code> for port
+           leases, Lua-script ownership check on release. Restart-safe by design.</p>
+      </div>
+
+      <div class="tl-item done">
+        <div class="when">Oct 2026</div>
+        <h4>Runtime, gateway, daemon, control plane — foundations</h4>
+        <p>Plugin contract, OPC UA adapter, aggregation gateway, worker pool
+           daemon, Django control plane with REST API and event consumer.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============== ROADMAP ============== -->
+  <section id="next">
+    <div class="section-head">
+      <div class="kicker">Roadmap</div>
+      <h2>What's left, in priority order</h2>
+      <p>Eight items remain. Each one is tagged with the packet that owns it —
+         see <a href="#packets">Find your packet</a> for who does what.</p>
+    </div>
+
+    <div class="roadmap">
+
+      <div class="step-card p1">
+        <div class="num">1</div>
+        <div class="body">
+          <h4>Dashboard proxy — Phase 3</h4>
+          <p class="why">Unlocks the browser UI. ~30 min.</p>
+          <p>Django serves <code>/s/&lt;slug&gt;/</code> and proxies to the worker's
+             loopback HTTP server. The firewall only needs port 8000. Fetch paths in
+             the shell become relative so the same HTML works either way.</p>
+        </div>
+        <div class="meta"><span class="pk">P1</span></div>
+      </div>
+
+      <div class="step-card p2">
+        <div class="num">2</div>
+        <div class="body">
+          <h4>Session detail page with stop button</h4>
+          <p class="why">Turns the UI from read-only into useful. ~45 min.</p>
+          <p>Renders the endpoint URL, token, live status, and a stop button that
+             calls <code>DELETE /api/sessions/&lt;token&gt;/</code>. A student can
+             go from "open the page" to "shut down my session" without touching a
+             terminal.</p>
+        </div>
+        <div class="meta"><span class="pk">P1</span></div>
+      </div>
+
+      <div class="step-card p3">
+        <div class="num">3</div>
+        <div class="body">
+          <h4>Create-session form</h4>
+          <p class="why">Removes the last <code>curl</code> step. ~45 min.</p>
+          <p>Pick a simulation from the catalog, optional label and slug, get back
+             a URL and the endpoint. POSTs to <code>/api/sessions/</code>, then
+             redirects to the detail page.</p>
+        </div>
+        <div class="meta"><span class="pk">P1</span></div>
+      </div>
+
+      <div class="step-card p4">
+        <div class="num">4</div>
+        <div class="body">
+          <h4>Database reconciliation for stale sessions</h4>
+          <p class="why">Fixes the "29 ghost rows" clutter. ~15 min.</p>
+          <p>On event-consumer startup, compare non-terminal sessions against live
+             <code>cip:hb:*</code> heartbeats. Mark orphans as failed. Every
+             <code>stack.sh reset</code> then cleans up after itself.</p>
+        </div>
+        <div class="meta"><span class="pk">P1</span></div>
+      </div>
+
+      <div class="step-card p5">
+        <div class="num">5</div>
+        <div class="body">
+          <h4>WebSocket consumer for live updates</h4>
+          <p class="why">Finishes the browser UI. ~1 hour.</p>
+          <p>A Channels consumer subscribes to <code>cip:evt</code> and pushes
+             to connected browsers. The session list updates without a manual
+             refresh. Adds the <code>"websocket"</code> entry to
+             <code>ProtocolTypeRouter</code>.</p>
+        </div>
+        <div class="meta"><span class="pk">P1</span></div>
+      </div>
+
+      <div class="step-card p6">
+        <div class="num">6</div>
+        <div class="body">
+          <h4>Deployment tooling</h4>
+          <p class="why">Makes the platform installable on a fresh server.</p>
+          <p>Systemd units for control-plane, worker-pool, event-consumer.
+             <code>install.sh</code> for a fresh Ubuntu 22.04, <code>deploy.sh</code>
+             for updates, UFW rules scoped to the intranet.</p>
+        </div>
+        <div class="meta"><span class="pk">P2</span></div>
+      </div>
+
+      <div class="step-card p7">
+        <div class="num">7</div>
+        <div class="body">
+          <h4>Optional OPC UA credentials + rate limiting</h4>
+          <p class="why">Operational hygiene. Auth is opt-in; caps are always on.</p>
+          <p>Concurrent-session cap and per-IP rate limiting on create — always
+             active, they protect against runaway scripts in a trusted network too.
+             Per-session credentials are behind an <code>OPCUA_AUTH_MODE</code>
+             flag: default <code>none</code> (anonymous, current behavior), opt-in
+             <code>per_session</code> for the day this leaves the intranet.</p>
+        </div>
+        <div class="meta"><span class="pk">P3</span></div>
+      </div>
+
+      <div class="step-card p8">
+        <div class="num">8</div>
+        <div class="body">
+          <h4>Multi-session load test + documentation</h4>
+          <p class="why">Final phase. Makes the project usable after handover.</p>
+          <p>Spin up N sessions, connect N fake PLCs, measure. Then write the
+             plugin guide, quickstart, architecture notes, and operations manual.</p>
+        </div>
+        <div class="meta"><span class="pk">P4</span></div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============== WORK PACKETS ============== -->
+  <section id="packets">
+    <div class="section-head">
+      <div class="kicker">Find your packet</div>
+      <h2>Four work packets, one per person</h2>
+      <p>Each packet is a self-contained chunk of the system that one person can
+         own from start to finish. The four are designed to touch different files,
+         so two people can work at the same time without stepping on each other.</p>
+    </div>
+
+    <!-- Order of work -->
+    <div class="order">
+      <div class="order-step s1">
+        <div class="step-num">Step 1</div>
+        <div class="step-title">Packet 1 — Browser UI</div>
+        <div class="step-sub">Unblocks everything else. Start here.</div>
+      </div>
+      <div class="order-step s2">
+        <div class="step-num">Step 2 · in parallel</div>
+        <div class="step-title">Packet 2 + Packet 3</div>
+        <div class="step-sub">Different files. Run at the same time.</div>
+      </div>
+      <div class="order-step s3">
+        <div class="step-num">Step 3</div>
+        <div class="step-title">Packet 4 — Load test &amp; docs</div>
+        <div class="step-sub">Finishes last. Needs P2 and P3 done.</div>
+      </div>
+    </div>
+
+    <div class="packets">
+
+      <!-- ============ PACKET 1 ============ -->
+      <article class="packet p1" id="packet-1">
+        <div class="pk-head">
+          <div class="pk-id">P1</div>
+          <div class="pk-title">
+            <h3>Browser UI &amp; Session Reconciliation</h3>
+            <div class="focus">Focus: Django views, templates, and the Channels consumer</div>
+          </div>
+          <div class="pk-effort">~3 hours</div>
+        </div>
+
+        <div class="mission">
+          <strong>Your mission:</strong> turn the platform from a curl-only tool
+          into something a student can drive from a browser. When you're done,
+          someone who has never opened a terminal can create a session, watch
+          its dashboard, and stop it. You also close the "ghost rows" bug.
+        </div>
+
+        <div class="pk-body">
+          <div class="pk-col">
+            <h4>You own</h4>
+            <ul class="owned">
+              <li><code>control_plane/apps/dashboard/</code></li>
+              <li><code>control_plane/templates/</code></li>
+              <li><code>control_plane/asgi.py</code></li>
+              <li><code>.../management/commands/run_event_consumer.py</code></li>
+              <li><code>sim_runtime/shell.html</code> <span class="note">— one-line fetch fix</span></li>
+            </ul>
+          </div>
+          <div class="pk-col">
+            <h4>Your deliverables</h4>
+            <ul class="dels">
+              <li>
+                <span class="lbl"><strong>Dashboard proxy</strong>
+                  <span class="sub">Serve worker pages at <code>/s/&lt;slug&gt;/</code>, proxy to worker loopback HTTP. 404/409/502 handling.</span>
+                </span>
+                <span class="eff">30 min</span>
+              </li>
+              <li>
+                <span class="lbl"><strong>Session detail page</strong>
+                  <span class="sub">Endpoint URL, token, live status, stop button that calls <code>DELETE /api/sessions/&lt;token&gt;/</code>.</span>
+                </span>
+                <span class="eff">45 min</span>
+              </li>
+              <li>
+                <span class="lbl"><strong>Create-session form</strong>
+                  <span class="sub">Catalog dropdown, optional slug and label, POST to <code>/api/sessions/</code>, redirect to detail.</span>
+                </span>
+                <span class="eff">45 min</span>
+              </li>
+              <li>
+                <span class="lbl"><strong>DB reconciliation</strong>
+                  <span class="sub">On consumer startup, compare non-terminal sessions against <code>cip:hb:*</code> and mark orphans failed.</span>
+                </span>
+                <span class="eff">15 min</span>
+              </li>
+              <li>
+                <span class="lbl"><strong>WebSocket consumer</strong>
+                  <span class="sub">Subscribe to <code>cip:evt</code>, push to the session list. Wire into <code>ProtocolTypeRouter</code>.</span>
+                </span>
+                <span class="eff">1 hour</span>
+              </li>
+              <li>
+                <span class="lbl"><strong>Make the shell fetch relative</strong>
+                  <span class="sub">Change <code>fetch('/api/state')</code> to <code>fetch('api/state')</code> in <code>shell.html</code> so the same page works direct and proxied.</span>
+                </span>
+                <span class="eff">5 min</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- AI CHATBOT INSTRUCTION FIELD FOR PACKET 1 -->
+        <div class="ai-prompt-container">
+          <div class="ai-prompt-header">
+            <div class="title">
+              <span>🤖 AI Chatbot Instructions — Work Packet 1</span>
+              <span class="badge">Attached: project_dump.md</span>
+            </div>
+            <button class="copy-btn" onclick="copyToClipboard(this, 'prompt-p1')">
+              📋 Copy AI Prompt
+            </button>
+          </div>
+          <div class="ai-prompt-body">
+            <pre class="ai-prompt-text" id="prompt-p1">You are an expert Full-Stack Python & Django Developer assigned to Work Packet 1 (P1: Browser UI & Session Reconciliation) for the Simulation Platform.
+
+CONTEXT & REFERENCE:
+- Attached to this session is `project_dump.md`, which contains full architecture, codebase tree, model schemas, and API routes. Read it carefully before generating code.
+- Refer to `project.html` for packet scope rules and deliverable descriptions.
+
+YOUR MISSION:
+Turn the platform into a fully functional browser UI so users can create, view, manage, and stop simulation sessions without terminal commands, and eliminate stale ghost session rows.
+
+FILES YOU OWN (Do not modify files outside this list without explicit team approval):
+- `control_plane/apps/dashboard/` (views.py, urls.py, consumers.py, routing.py)
+- `control_plane/templates/` (base.html, list.html, detail.html, create.html)
+- `control_plane/asgi.py`
+- `control_plane/apps/sessions_mgr/management/commands/run_event_consumer.py`
+- `sim_runtime/shell.html`
+
+STEP-BY-STEP IMPLEMENTATION PLAN:
+1. Relative Fetch Fix (`sim_runtime/shell.html`):
+   - Change `fetch('/api/state')` to `fetch('api/state')` so worker dashboards function identically when accessed directly or via reverse proxy.
+2. Dashboard Reverse Proxy (`/s/<slug>/`):
+   - In `control_plane/apps/dashboard/views.py`, implement `session_proxy(request, slug, path="")` using `httpx` or `urllib.request`.
+   - Query `Session` by slug or session_id. Forward request to worker's internal loopback address `http://127.0.0.1:<http_port>/<path>`.
+   - Handle edge errors gracefully: 404 (Session missing), 409 (Session exists but inactive), 502 (Worker HTTP unreachable).
+3. Session Detail View (`/sessions/<token>/`):
+   - Create template `detail.html` rendering OPC UA endpoint (`opc.tcp://...`), token, live status badge, created time, and worker URL.
+   - Add a prominent "Stop Session" button that calls `DELETE /api/sessions/<token>/` via JS fetch with confirmation dialog.
+4. Create-Session UI Form (`/sessions/new/`):
+   - Create view and template `create.html` displaying a simulation catalog dropdown, optional label, and optional slug inputs.
+   - POST to `/api/sessions/` endpoint and redirect to `/sessions/<token>/` on success.
+5. Ghost Session DB Reconciliation:
+   - In `run_event_consumer.py`, during consumer startup, query non-terminal sessions (`CREATED`, `RUNNING`).
+   - Cross-check against active Redis heartbeat keys `cip:hb:*`. Mark orphans lacking heartbeats as `FAILED` (failure_reason="Orphaned session reclaimed on consumer startup").
+6. WebSocket Consumer for Live List Updates:
+   - Implement `SessionEventsConsumer` in `consumers.py` listening on Channels group `cip_events`.
+   - Update `asgi.py` `ProtocolTypeRouter` with `"websocket": URLRouter(...)`.
+   - Add client JS in `list.html` to dynamically update status badges and list rows in real time.
+
+EXECUTION INSTRUCTIONS:
+- Acknowledge reading `project_dump.md` and present your step-by-step implementation strategy.
+- Implement each deliverable systematically, providing complete and clean code snippets with type hints.</pre>
+          </div>
+        </div>
+
+        <div class="pk-foot">
+          <div class="item"><span class="lbl">Needs</span><span class="val ok">Nothing — start here</span></div>
+          <div class="item"><span class="lbl">Unblocks</span>
+            <span class="val pk">P3</span><span class="val mut">credentials display · </span>
+            <span class="val pk">P4</span><span class="val mut">load-test observation</span>
+          </div>
+          <div class="item"><span class="lbl">Not your job</span><span class="val">Per-session credentials (P3) · deployment (P2)</span></div>
+        </div>
+      </article>
+
+      <!-- ============ PACKET 2 ============ -->
+      <article class="packet p2" id="packet-2">
+        <div class="pk-head">
+          <div class="pk-id">P2</div>
+          <div class="pk-title">
+            <h3>Deployment, Operations &amp; Handover</h3>
+            <div class="focus">Focus: systemd, shell scripts, and documentation</div>
+          </div>
+          <div class="pk-effort">~1 day</div>
+        </div>
+
+        <div class="mission">
+          <strong>Your mission:</strong> make the platform installable on a fresh
+          server with one command, and make it handover-ready. When you're done,
+          someone else can own this project without reading a single source file.
+        </div>
+
+        <div class="pk-body">
+          <div class="pk-col">
+            <h4>You own</h4>
+            <ul class="owned">
+              <li><code>deploy/</code> <span class="note">— new</span></li>
+              <li><code>install.sh</code> <span class="note">— new</span></li>
+              <li><code>deploy.sh</code> <span class="note">— new</span></li>
+              <li><code>docs/</code> <span class="note">— new</span></li>
+              <li><code>README.md</code> <span class="note">— new</span></li>
+              <li><code>.env.production.example</code></li>
+              <li>Python 3.11 guards in <code>worker/main.py</code>, <code>daemon.py</code>, <code>gateway/main.py</code></li>
+            </ul>
+          </div>
+          <div class="pk-col">
+            <h4>Your deliverables</h4>
+            <ul class="dels">
+              <li>
+                <span class="lbl"><strong>Systemd units</strong>
+                  <span class="sub">control-plane, worker-pool, event-consumer, purge-events timer. Hardened: <code>NoNewPrivileges</code>, <code>ProtectSystem=strict</code>.</span>
+                </span>
+                <span class="eff">2 hr</span>
+              </li>
+              <li>
+                <span class="lbl"><strong>install.sh</strong>
+                  <span class="sub">Fresh Ubuntu 22.04 → running stack. Idempotent. Creates the <code>cip</code> system user.</span>
+                </span>
+                <span class="eff">1.5 hr</span>
+              </li>
+              <li>
+                <span class="lbl"><strong>deploy.sh</strong>
+                  <span class="sub">git pull, pip install, migrate, restart. Does not touch <code>/etc/cip-sim/env</code> or the DB.</span>
+                </span>
+                <span class="eff">30 min</span>
+              </li>
+              <li>
+                <span class="lbl"><strong>Firewall script</strong>
+                  <span class="sub">UFW rules scoped to the intranet CIDR only: 22, 8000, 8080.</span>
+                </span>
+                <span class="eff">15 min</span>
+              </li>
+              <li>
+                <span class="lbl"><strong>Python 3.11 version guard</strong>
+                  <span class="sub">A clear error at startup instead of a <code>SyntaxError</code> on <code>TaskGroup</code> / <code>except*</code>.</span>
+                </span>
+                <span class="eff">10 min</span>
+              </li>
+              <li>
+                <span class="lbl"><strong>Handover docs</strong>
+                  <span class="sub">quickstart.md (for students), operations.md (for the operator), architecture.md (this page as markdown).</span>
+                </span>
+                <span class="eff">3 hr</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- AI CHATBOT INSTRUCTION FIELD FOR PACKET 2 -->
+        <div class="ai-prompt-container">
+          <div class="ai-prompt-header">
+            <div class="title">
+              <span>🤖 AI Chatbot Instructions — Work Packet 2</span>
+              <span class="badge">Attached: project_dump.md</span>
+            </div>
+            <button class="copy-btn" onclick="copyToClipboard(this, 'prompt-p2')">
+              📋 Copy AI Prompt
+            </button>
+          </div>
+          <div class="ai-prompt-body">
+            <pre class="ai-prompt-text" id="prompt-p2">You are a Principal DevOps & Systems Automation Engineer assigned to Work Packet 2 (P2: Deployment, Operations & Handover) for the Simulation Platform.
+
+CONTEXT & REFERENCE:
+- Attached to this session is `project_dump.md`, which contains full architecture details, environment variables, system dependencies, and process lifecycle. Read it thoroughly.
+- Refer to `project.html` for packet scope rules and deliverable descriptions.
+
+YOUR MISSION:
+Make the platform seamlessly deployable on a fresh Ubuntu 22.04 LTS server with automated setup scripts, production-ready systemd units, hardened security practices, and comprehensive handover documentation.
+
+FILES YOU OWN (Do not modify files outside this list without explicit team approval):
+- `deploy/systemd/` (`cip-control-plane.service`, `cip-worker-pool.service`, `cip-event-consumer.service`, `cip-purge-events.service`, `cip-purge-events.timer`)
+- `deploy/firewall/setup-ufw.sh`
+- `install.sh`
+- `deploy.sh`
+- `.env.production.example`
+- `docs/` (`quickstart.md`, `operations.md`, `architecture.md`)
+- `README.md`
+- Python 3.11 version guards in `worker/main.py`, `daemon.py`, `gateway/main.py`
+
+STEP-BY-STEP IMPLEMENTATION PLAN:
+1. Python 3.11 Version Guards:
+   - Add explicit runtime version guards using `sys.version_info` at entrypoints (`worker/main.py`, `daemon.py`, `gateway/main.py`).
+   - Print clear error: "Python 3.11+ required. Found Python X.Y. Exiting." to prevent syntax errors with TaskGroup / except*.
+2. Systemd Unit Files (`deploy/systemd/`):
+   - `cip-control-plane.service`: Gunicorn/Uvicorn server for Django on port 8000.
+   - `cip-worker-pool.service`: Runs `python -m worker_pool.daemon`.
+   - `cip-event-consumer.service`: Runs `python manage.py run_event_consumer`.
+   - `cip-purge-events.service` & `.timer`: Scheduled job purging old event logs.
+   - Apply systemd hardening flags: `NoNewPrivileges=true`, `ProtectSystem=strict`, `ProtectHome=true`, `ReadWritePaths=/var/lib/cip-sim /var/log/cip-sim`.
+3. Idempotent Automated Installer (`install.sh`):
+   - Bash script for Ubuntu 22.04 LTS installing dependencies (Python 3.11, venv, Redis, UFW, git).
+   - Creates dedicated system user `cip`.
+   - Sets up virtualenv, installs `requirements.txt`, runs migrations, syncs catalog, configures environment, and enables systemd units.
+4. Deployment & Update Script (`deploy.sh`):
+   - Safe update runner for production: `git pull`, `pip install -r requirements.txt`, `python manage.py migrate`, `python manage.py sync_catalog`, and `systemctl restart cip-*`.
+   - Does NOT touch `/etc/cip-sim/env` or overwrite sqlite database files.
+5. Intranet Firewall Script (`deploy/firewall/setup-ufw.sh`):
+   - UFW setup script locking down incoming ports (22 SSH, 8000 HTTP, 8080 OPC UA Gateway) restricted to intranet CIDR.
+6. Handover Documentation (`docs/` & `README.md`):
+   - `docs/quickstart.md`: Student/operator guide to launch sessions and connect CODESYS PLCs.
+   - `docs/operations.md`: Administrator operations manual for systemd management, logs, database backups, and troubleshooting.
+   - `docs/architecture.md`: Architectural reference manual describing the multi-layer simulation engine.
+   - Update root `README.md` with concise onboarding steps.
+
+EXECUTION INSTRUCTIONS:
+- Acknowledge reviewing `project_dump.md` and outline your execution strategy.
+- Shell scripts must use `set -euo pipefail` and include informative visual output formatting.</pre>
+          </div>
+        </div>
+
+        <div class="pk-foot">
+          <div class="item"><span class="lbl">Needs</span>
+            <span class="val warn">P1</span><span class="val mut">— the UI must exist before you can document it</span>
+          </div>
+          <div class="item"><span class="lbl">Unblocks</span>
+            <span class="val pk">P4</span><span class="val mut">stable systemd-managed runs for the load test</span>
+          </div>
+          <div class="item"><span class="lbl">Not your job</span><span class="val">Control-plane logic (P1) · process hardening (P3)</span></div>
+        </div>
+      </article>
+
+      <!-- ============ PACKET 3 ============ -->
+      <article class="packet p3" id="packet-3">
+        <div class="pk-head">
+          <div class="pk-id">P3</div>
+          <div class="pk-title">
+            <h3>Runtime Hardening &amp; Gateway Robustness</h3>
+            <div class="focus">Focus: OPC UA adapter, gateway, and session limits</div>
+          </div>
+          <div class="pk-effort">~5 hours</div>
+        </div>
+
+        <div class="mission">
+          <strong>Your mission:</strong> close the operational holes that matter
+          even in a trusted intranet — a session that runs away, a create loop
+          that exhausts the port pool, a client that holds the OPC UA tree open
+          forever. OPC UA authentication is offered as an <strong>opt-in</strong>
+          mode, but the deployment default is <strong>no auth</strong>: this is a
+          deliberate choice for a secure intranet, not a gap. If the platform
+          ever leaves the intranet, the flag is one env var away.
+        </div>
+
+        <div class="pk-body">
+          <div class="pk-col">
+            <h4>You own</h4>
+            <ul class="owned">
+              <li><code>sim_runtime/opcua_adapter.py</code></li>
+              <li><code>gateway/</code></li>
+              <li><code>worker_pool/</code> <span class="note">— except version guards</span></li>
+              <li><code>shared/schemas.py</code></li>
+              <li><code>shared/constants.py</code></li>
+              <li>Credential + cap fields in <code>sessions_mgr/models.py</code>, <code>orchestrator.py</code>, <code>views.py</code>, <code>serializers.py</code></li>
+            </ul>
+          </div>
+          <div class="pk-col">
+            <h4>Your deliverables</h4>
+            <ul class="dels">
+              <li>
+                <span class="lbl"><strong>Concurrent session cap</strong>
+                  <span class="sub"><code>MAX_CONCURRENT_SESSIONS</code> in constants, default 100. Return 503 from <code>_create_session()</code> beyond it. Always on.</span>
+                </span>
+                <span class="eff">30 min</span>
+              </li>
+              <li>
+                <span class="lbl"><strong>Per-IP rate limit</strong>
+                  <span class="sub">Redis counter <code>cip:ratelimit:create:&lt;ip&gt;</code>, 10/min, fail-open on Redis error. Always on.</span>
+                </span>
+                <span class="eff">45 min</span>
+              </li>
+              <li>
+                <span class="lbl"><strong>Idle-timeout verification</strong>
+                  <span class="sub">Set <code>WORKER_IDLE_TIMEOUT=120</code>, connect, disconnect, verify a <code>SessionStoppedEvent(reason="idle_timeout")</code> lands.</span>
+                </span>
+                <span class="eff">30 min</span>
+              </li>
+              <li>
+                <span class="lbl"><strong>Optional OPC UA credentials <span style="color: var(--accent);">— opt-in</span></strong>
+                  <span class="sub">New <code>OPCUA_AUTH_MODE</code> env var, default <code>none</code>. In <code>none</code>, workers accept anonymous clients (current behavior, unchanged). In <code>per_session</code>, sessions get random credentials at create, worker uses <code>UsernameIdentityToken</code>, gateway authenticates per mirror.</span>
+                </span>
+                <span class="eff">2.5 hr</span>
+              </li>
+              <li>
+                <span class="lbl"><strong>Schema + serializer plumbing</strong>
+                  <span class="sub"><code>opcua_username</code> / <code>opcua_password</code> are <code>Optional[str] = None</code> on <code>StartSessionCommand</code>, <code>SessionReadyEvent</code>, and <code>SessionDetailSerializer</code>. Never the summary serializer. Nullable on the Session model too.</span>
+                </span>
+                <span class="eff">30 min</span>
+              </li>
+              <li>
+                <span class="lbl"><strong>Gateway tuning knobs</strong>
+                  <span class="sub">Adjust retry backoff and subscription interval based on P4's measured numbers. Only if the numbers justify it.</span>
+                </span>
+                <span class="eff">after P4</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- AI CHATBOT INSTRUCTION FIELD FOR PACKET 3 -->
+        <div class="ai-prompt-container">
+          <div class="ai-prompt-header">
+            <div class="title">
+              <span>🤖 AI Chatbot Instructions — Work Packet 3</span>
+              <span class="badge">Attached: project_dump.md</span>
+            </div>
+            <button class="copy-btn" onclick="copyToClipboard(this, 'prompt-p3')">
+              📋 Copy AI Prompt
+            </button>
+          </div>
+          <div class="ai-prompt-body">
+            <pre class="ai-prompt-text" id="prompt-p3">You are a Senior Backend & Systems Reliability Engineer assigned to Work Packet 3 (P3: Runtime Hardening & Gateway Robustness) for the Simulation Platform.
+
+CONTEXT & REFERENCE:
+- Attached to this session is `project_dump.md`, which details the OPC UA adapter, Gateway mirror logic, Redis key space, schemas, and control plane serializers. Read it thoroughly.
+- Refer to `project.html` for packet scope rules and deliverable descriptions.
+
+YOUR MISSION:
+Protect the platform from runaway sessions, port pool exhaustion, and orphaned client connections while implementing an opt-in per-session OPC UA authentication mode.
+
+FILES YOU OWN (Do not modify files outside this list without explicit team approval):
+- `sim_runtime/opcua_adapter.py`
+- `gateway/` (`main.py`, `mirror.py`, `server.py`)
+- `worker_pool/` (`daemon.py`, `manager.py`, `port_allocator.py`, `redis_bridge.py`)
+- `shared/schemas.py`, `shared/constants.py`
+- Credential & cap fields in `sessions_mgr/models.py`, `orchestrator.py`, `views.py`, `serializers.py`
+
+STEP-BY-STEP IMPLEMENTATION PLAN:
+1. Concurrent Session Cap:
+   - Define `MAX_CONCURRENT_SESSIONS = 100` in `shared/constants.py`.
+   - Enforce in `sessions_mgr/views.py` during session creation (`POST /api/sessions/`). Return HTTP 503 Service Unavailable with clean JSON error payload if cap is reached.
+2. Per-IP API Rate Limiter:
+   - Implement Redis fixed-window rate limiter in Django API (`cip:ratelimit:create:<ip>`, limit 10 requests/min).
+   - If Redis connection fails, log warning and fail-open to ensure core API availability.
+3. Idle Timeout Verification & Hardening:
+   - Verify worker idle detection logic (`WORKER_IDLE_TIMEOUT`).
+   - Ensure worker automatically emits `SessionStoppedEvent(reason="idle_timeout")` and terminates gracefully when no OPC UA client or dashboard connects for the designated timeout.
+4. Opt-In Per-Session OPC UA Credentials (`OPCUA_AUTH_MODE`):
+   - Introduce `OPCUA_AUTH_MODE` env var (values: `none` [default] | `per_session`).
+   - Mode `none`: anonymous OPC UA connections permitted (current behavior preserved).
+   - Mode `per_session`: orchestrator generates secure random credentials (`opcua_username`, `opcua_password`) during session creation.
+   - Update worker `opcua_adapter.py` to validate `UsernameIdentityToken` when credentials are set.
+   - Update `gateway/mirror.py` to supply session credentials when connecting to worker OPC UA servers.
+5. Schema, Model & Serializer Plumbing:
+   - Update `StartSessionCommand`, `SessionReadyEvent`, `SessionDetailSerializer`, and `Session` model with nullable `opcua_username` and `opcua_password`.
+   - Ensure credentials appear ONLY in `SessionDetailSerializer` and NEVER in list summary serializers.
+6. Gateway Resilience Tuning:
+   - Expose configurable reconnect backoffs and sampling interval settings in `gateway/main.py`.
+
+EXECUTION INSTRUCTIONS:
+- Acknowledge reviewing `project_dump.md` and outline your implementation strategy.
+- Maintain strict backward compatibility so default `OPCUA_AUTH_MODE=none` behavior is completely unaffected.</pre>
+          </div>
+        </div>
+
+        <div class="pk-foot">
+          <div class="item"><span class="lbl">Needs</span>
+            <span class="val warn">P1</span><span class="val mut">(serializer changes for the detail page) · </span>
+            <span class="val warn">P4</span><span class="val mut">(numbers for tuning)</span>
+          </div>
+          <div class="item"><span class="lbl">Unblocks</span>
+            <span class="val pk">P4</span><span class="val mut">credential-aware load clients (only when the mode is on)</span>
+          </div>
+          <div class="item"><span class="lbl">Not your job</span>
+            <span class="val">Transport encryption (not needed on intranet) · UI (P1) · deployment (P2)</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- ============ PACKET 4 ============ -->
+      <article class="packet p4" id="packet-4">
+        <div class="pk-head">
+          <div class="pk-id">P4</div>
+          <div class="pk-title">
+            <h3>Load Test, Scaling Verdict &amp; Plugin Guide</h3>
+            <div class="focus">Focus: load testing, measurement, and the plugin guide</div>
+          </div>
+          <div class="pk-effort">~1 day</div>
+        </div>
+
+        <div class="mission">
+          <strong>Your mission:</strong> find the safe maximum session count and
+          write the guide that lets the next contributor extend the platform.
+          When you're done, the "scaling untested" issue is closed with numbers,
+          and a new person can ship a plugin without reading <code>base.py</code>.
+        </div>
+
+        <div class="pk-body">
+          <div class="pk-col">
+            <h4>You own</h4>
+            <ul class="owned">
+              <li><code>tests/load/</code> <span class="note">— new</span></li>
+              <li><code>tools/fake_plc.py</code> <span class="note">— new</span></li>
+              <li><code>tools/load_report.py</code> <span class="note">— new</span></li>
+              <li><code>sim_plugins/loadtest/</code> <span class="note">— new</span></li>
+              <li><code>docs/plugin-guide.md</code> <span class="note">— new</span></li>
+              <li><code>docs/handover.md</code> <span class="note">— scaling section</span></li>
+            </ul>
+          </div>
+          <div class="pk-col">
+            <h4>Your deliverables</h4>
+            <ul class="dels">
+              <li>
+                <span class="lbl"><strong>Load-test plugin</strong>
+                  <span class="sub">The smallest possible <code>BaseSimulation</code>: one command, one measurement, no physics. Clone from blinker and strip.</span>
+                </span>
+                <span class="eff">30 min</span>
+              </li>
+              <li>
+                <span class="lbl"><strong>fake_plc.py</strong>
+                  <span class="sub">N concurrent OPC UA clients that browse the gateway, subscribe to <code>Measurements.Tick</code>, write <code>Commands.Enable</code>. Reports connect time, latency, errors, memory.</span>
+                </span>
+                <span class="eff">2 hr</span>
+              </li>
+              <li>
+                <span class="lbl"><strong>test_n_sessions.py</strong>
+                  <span class="sub">Orchestrates N sessions via the REST API, starts N clients, samples RSS of gateway/daemon/Django, tears down cleanly.</span>
+                </span>
+                <span class="eff">2 hr</span>
+              </li>
+              <li>
+                <span class="lbl"><strong>load_report.py</strong>
+                  <span class="sub">Parse the JSON output, print a table: N, workers-alive, gateway RSS, p50/p95 latency, error rate, first bottleneck.</span>
+                </span>
+                <span class="eff">45 min</span>
+              </li>
+              <li>
+                <span class="lbl"><strong>Run at N=10, 25, 50, 100</strong>
+                  <span class="sub">Write the actual numbers into the scaling issue and into <code>docs/handover.md</code>. Hand tuning findings to P3.</span>
+                </span>
+                <span class="eff">2 hr</span>
+              </li>
+              <li>
+                <span class="lbl"><strong>Plugin authoring guide</strong>
+                  <span class="sub">How to write <code>simulation.py</code>, declare schema, add <code>body.html</code> + <code>ui.js</code>, register, sync. Worked blinker example.</span>
+                </span>
+                <span class="eff">1.5 hr</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- AI CHATBOT INSTRUCTION FIELD FOR PACKET 4 -->
+        <div class="ai-prompt-container">
+          <div class="ai-prompt-header">
+            <div class="title">
+              <span>🤖 AI Chatbot Instructions — Work Packet 4</span>
+              <span class="badge">Attached: project_dump.md</span>
+            </div>
+            <button class="copy-btn" onclick="copyToClipboard(this, 'prompt-p4')">
+              📋 Copy AI Prompt
+            </button>
+          </div>
+          <div class="ai-prompt-body">
+            <pre class="ai-prompt-text" id="prompt-p4">You are a Lead QA, Performance Engineer & Technical Author assigned to Work Packet 4 (P4: Load Test, Scaling Verdict & Plugin Guide) for the Simulation Platform.
+
+CONTEXT & REFERENCE:
+- Attached to this session is `project_dump.md`, which contains full details on the plugin contract (`BaseSimulation`), worker pool architecture, gateway aggregator, and runtime loops. Read it thoroughly.
+- Refer to `project.html` for packet scope rules and deliverable descriptions.
+
+YOUR MISSION:
+Benchmark and stress-test the platform with up to N≈100 concurrent active OPC UA sessions, identify scaling limits and bottlenecks, provide empirical performance data, and write the definitive Simulation Plugin Authoring Guide.
+
+FILES YOU OWN (Do not modify files outside this list without explicit team approval):
+- `sim_plugins/loadtest/` (`simulation.py`, `__init__.py`)
+- `tests/load/` (`test_n_sessions.py`, `__init__.py`)
+- `tools/fake_plc.py`
+- `tools/load_report.py`
+- `docs/plugin-guide.md`
+- `docs/handover.md` (Scaling & Benchmark Section)
+
+STEP-BY-STEP IMPLEMENTATION PLAN:
+1. Lightweight Benchmark Plugin (`sim_plugins/loadtest/`):
+   - Implement minimal `BaseSimulation` with 1 command (`ResetCount`), 1 measurement (`TickCount`), and 1 status (`IsActive`). No complex physical modeling.
+2. Fake PLC Load Tool (`tools/fake_plc.py`):
+   - Async Python CLI tool using `asyncua`.
+   - Spawns N client tasks that browse Gateway address space, subscribe to measurements, send periodic command writes, and track connection latency, round-trip latency, dropped subscriptions, and errors.
+3. Load Test Orchestrator (`tests/load/test_n_sessions.py`):
+   - Automated test runner that calls REST API to spawn N load-test sessions, executes `fake_plc.py` client load, samples CPU & RSS memory of Gateway, Daemon, and Workers, and handles tear-down cleanly.
+4. Load Report Generator (`tools/load_report.py`):
+   - Formats raw benchmark output into clean Markdown/ASCII summary tables (N sessions, worker RSS, Gateway CPU/RAM, p50/p95 latency, error rates, and primary system bottleneck).
+5. Conduct Benchmarks & Scaling Verdict:
+   - Execute benchmark suite at N = 10, 25, 50, 100 sessions. Record metrics and publish final scaling verdict in `docs/handover.md`.
+6. Plugin Authoring Guide (`docs/plugin-guide.md`):
+   - Write comprehensive guide detailing how to create a new simulation plugin from scratch.
+   - Explain subclassing `BaseSimulation`, declaring `CommandSpec`, `MeasurementSpec`, `StatusSpec`, building web UI (`body.html`, `ui.js`), registering under `sim_plugins/`, and running `python manage.py sync_catalog`.
+   - Use `sim_plugins/blinker` as a worked reference example.
+
+EXECUTION INSTRUCTIONS:
+- Acknowledge reviewing `project_dump.md` and outline your strategy.
+- Ensure all test scripts handle Ctrl+C interrupts gracefully and clean up spawned sessions.</pre>
+          </div>
+        </div>
+
+        <div class="pk-foot">
+          <div class="item"><span class="lbl">Needs</span>
+            <span class="val warn">P2</span><span class="val mut">(systemd for stable runs) · </span>
+            <span class="val warn">P3</span><span class="val mut">(final cap and rate-limit shape)</span>
+          </div>
+          <div class="item"><span class="lbl">Unblocks</span><span class="val mut">— nothing; this is the last packet</span></div>
+          <div class="item"><span class="lbl">Not your job</span><span class="val">Fixing what the load test finds (P3 owns the fixes)</span></div>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- ============== SLUGS ============== -->
+  <section id="slugs">
+    <div class="section-head">
+      <div class="kicker">Feature Explainer</div>
+      <h2>Session slugs — stable OPC UA paths</h2>
+      <p>Why a session identifier matters more than it sounds like it should.</p>
+    </div>
+
+    <div class="slugs">
+
+      <p>
+        Every session is exposed in the OPC UA tree as a folder under
+        <code>Objects/Gateway/Sessions/</code>. The folder name is what CODESYS
+        Data Sources bake into generated struct field names — it becomes part of
+        every <code>Datasource.Gateway.Sessions.&lt;name&gt;.*</code> reference
+        in your PLC project.
+      </p>
+
+      <div class="split">
+        <div class="panel before">
+          <h4>Before slugs — UUID folder</h4>
+          <p>A fresh UUID every session:</p>
+          <code>9043f2a2-db79-4ba4-8f4c-25bd9548f4d5</code>
+          <p style="margin-top: 12px;">CODESYS sanitises it into a legal IEC identifier,
+             mangling the name:</p>
+          <code>_db79_4ba4_8f4c_25bd9548f4d5</code>
+          <p style="margin-top: 12px;">Every restart invalidates the entire
+             Data Sources tree. Rows are unwieldy to browse.</p>
+        </div>
+        <div class="panel after">
+          <h4>After slugs — human-readable</h4>
+          <p>Create with a slug:</p>
+          <code>./scripts/stack.sh create --slug cip_live</code>
+          <p style="margin-top: 12px;">The OPC UA folder becomes:</p>
+          <code>cip_live</code>
+          <p style="margin-top: 12px;">CODESYS sees exactly what you typed. No
+             sanitisation, no invalidation on restart.</p>
+        </div>
+      </div>
+
+      <div class="why">
+        <h4>How it works</h4>
+        <p>
+          The <code>slug</code> field on the Session model replaces the UUID in
+          the OPC UA tree when set. Behind the scenes, <code>session_id</code> (the
+          UUID) still keys everything that needs identity — Redis heartbeats, port
+          leases, DB lookups, event routing. The slug is purely a display name for
+          the tree. This split means a slug can be reused: creating a session with
+          the same slug stops the prior one and takes over the name. From the
+          PLC's perspective, nothing changed.
+        </p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============== ARCHITECTURE ============== -->
+  <section id="architecture">
+    <div class="section-head">
+      <div class="kicker">Architecture</div>
+      <h2>Server → OPC UA → CODESYS</h2>
+      <p>The whole system exists to serve one thing: a stable OPC UA address space
+         that industrial clients can browse. Everything below the client layer is
+         plumbing that keeps that address space correct and available.</p>
+    </div>
+
+    <div class="arch">
+
+      <div class="layer">
+        <div class="layer-label">Client Layer · your side</div>
+        <div class="layer-body">
+          <div class="node node-clients">
+            <span class="t">CODESYS</span>
+            <span class="s">OPC UA client · browse + write</span>
+          </div>
+          <div class="node node-clients">
+            <span class="t">SCADA / HMI</span>
+            <span class="s">subscriptions · trends</span>
+          </div>
+          <div class="node node-clients">
+            <span class="t">Web Browser</span>
+            <span class="s">control plane UI</span>
+          </div>
+          <div class="node node-clients">
+            <span class="t">opcua_cli</span>
+            <span class="s">this project's CLI tool</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="connector">
+        <div class="line"></div>
+        <div class="label">opc.tcp · http</div>
+      </div>
+
+      <div class="layer">
+        <div class="layer-label">Server Layer · this project</div>
+        <div class="layer-body">
+          <div class="node node-gateway" style="min-width: 260px;">
+            <span class="t">OPC UA Gateway</span>
+            <span class="s">one endpoint · aggregates sessions</span>
+            <span class="s" style="color: var(--ink-2);">auth: opt-in (default off)</span>
+          </div>
+          <div class="node node-control" style="min-width: 260px; position: relative;">
+            <span class="t">Django Control Plane</span>
+            <span class="s">REST API · session UI · dashboard proxy</span>
+            <span class="node-tag new">P1: proxies /s/&lt;slug&gt;/</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="connector">
+        <div class="line"></div>
+        <div class="label">commands · events · heartbeats</div>
+      </div>
+
+      <div class="layer">
+        <div class="layer-label">Message Bus</div>
+        <div class="layer-body">
+          <div class="node node-bus" style="min-width: 420px;">
+            <span class="t">Redis Streams</span>
+            <span class="s">cip:cmd · cip:evt · cip:hb:&lt;uuid&gt; · cip:ports</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="connector">
+        <div class="line"></div>
+        <div class="label">spawn · reap · reconcile</div>
+      </div>
+
+      <div class="layer">
+        <div class="layer-label">Runtime Layer</div>
+        <div class="layer-body" style="margin-bottom: 12px;">
+          <div class="node node-daemon" style="min-width: 260px;">
+            <span class="t">Worker Pool Daemon</span>
+            <span class="s">lifecycle · ports · idle timeout</span>
+          </div>
+        </div>
+        <div class="layer-body">
+          <div class="node node-worker">
+            <span class="t">Worker · CIP</span>
+            <span class="s">OPC UA :5000 · HTTP :6000</span>
+          </div>
+          <div class="node node-worker">
+            <span class="t">Worker · Blinker</span>
+            <span class="s">OPC UA :5001 · HTTP :6001</span>
+          </div>
+          <div class="node node-worker node-dashed">
+            <span class="t">Worker · any plugin</span>
+            <span class="s">drop in a directory</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div style="
+      background: linear-gradient(180deg, rgba(93,220,240,.10), transparent);
+      border: 1px solid rgba(93,220,240,.35); border-left: 4px solid var(--accent);
+      border-radius: 12px; padding: 20px 24px; margin-top: 22px;
+    ">
+      <h4 style="margin: 0 0 10px; font-size: 16px; color: var(--accent); font-weight: 700;">
+        The core contract
+      </h4>
+      <p style="margin: 0; color: var(--ink-1); font-size: 15px;">
+        Every running simulation is exposed as a subtree under
+        <code>Objects/Gateway/Sessions/&lt;session_name&gt;/</code> on a single
+        gateway endpoint. CODESYS sees one OPC UA server with N folders, each
+        self-describing its schema. Adding a plugin requires no client-side or
+        server-side reconfiguration.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============== FEATURES ============== -->
+  <section id="features">
+    <div class="section-head">
+      <div class="kicker">Features</div>
+      <h2>Every module in the project</h2>
+      <p>Filter by status. Green ✓ shipped · Yellow ◐ in progress · Gray ○ planned.
+         Each open card carries the packet that owns it.</p>
+    </div>
+
+    <div class="feature-tabs">
+      <button class="ftab active" data-status="all"><span class="swatch"></span>All</button>
+      <button class="ftab" data-status="shipped"><span class="swatch"></span>Shipped</button>
+      <button class="ftab" data-status="progress"><span class="swatch"></span>Planned in a packet</button>
+      <button class="ftab" data-status="planned"><span class="swatch"></span>Later</button>
+    </div>
+
+    <div class="grid" id="cards">
+
+      <!-- RUNTIME SHIPPED -->
+      <div class="card" data-status="shipped" style="--cat-color: #b8a1fc">
+        <div class="cat-label">Runtime <span class="status-pill shipped">✓ shipped</span></div>
+        <h3>Plugin Contract</h3>
+        <p>Pure-Python base class. No I/O, no async, no Django imports — the runtime
+           adapts the plugin; the plugin never knows it exists.</p>
+        <ul>
+          <li><code>BaseSimulation</code> — step / snapshot / write_command</li>
+          <li><code>CommandSpec</code>, <code>MeasurementSpec</code>, <code>StatusSpec</code></li>
+          <li>Pulse commands for one-shot signals</li>
+        </ul>
+      </div>
+
+      <div class="card" data-status="shipped" style="--cat-color: #b8a1fc">
+        <div class="cat-label">Runtime <span class="status-pill shipped">✓ shipped</span></div>
+        <h3>OPC UA Adapter</h3>
+        <p>Schema-driven. Reads the plugin's declared schema and builds the OPC UA
+           address space automatically. Validates every write; translates plugin
+           errors into OPC UA status codes.</p>
+        <ul>
+          <li>Self-describing metadata properties on the root node</li>
+          <li>PostRead/PostWrite feed idle detection</li>
+          <li>Namespace-qualified browse names</li>
+        </ul>
+      </div>
+
+      <div class="card" data-status="shipped" style="--cat-color: #b8a1fc">
+        <div class="cat-label">Runtime <span class="status-pill shipped">✓ shipped</span></div>
+        <h3>HTTP Dashboard</h3>
+        <p>Background thread serving one HTML page + <code>/api/state</code>.
+           Plugin UI is injected from <code>body.html</code> and <code>ui.js</code>;
+           the shell handles polling, freshness, and staleness.</p>
+        <ul>
+          <li>Binds to loopback only</li>
+          <li>Proxied through Django (P1)</li>
+        </ul>
+      </div>
+
+      <div class="card" data-status="shipped" style="--cat-color: #b8a1fc">
+        <div class="cat-label">Runtime <span class="status-pill shipped">✓ shipped</span></div>
+        <h3>Plugin Registry</h3>
+        <p>Convention over configuration. A directory under <code>sim_plugins/</code>
+           with a <code>simulation.py</code> is the entire installation. Duplicate
+           IDs raise at load time.</p>
+      </div>
+
+      <!-- GATEWAY SHIPPED -->
+      <div class="card" data-status="shipped" style="--cat-color: #fca55e">
+        <div class="cat-label">Gateway <span class="status-pill shipped">✓ shipped</span></div>
+        <h3>Aggregation Server</h3>
+        <p>One stable endpoint. CODESYS sees a single OPC UA server with a folder
+           per live session, regardless of how many workers are running.</p>
+        <ul>
+          <li><code>server.py</code> — aggregate address space</li>
+          <li><code>mirror.py</code> — one WorkerMirror per session</li>
+          <li><code>main.py</code> — reconciliation + event loop</li>
+        </ul>
+      </div>
+
+      <div class="card" data-status="shipped" style="--cat-color: #fca55e">
+        <div class="cat-label">Gateway <span class="status-pill shipped">✓ shipped</span></div>
+        <h3>Self-describing Discovery</h3>
+        <p>Reads the worker's own metadata properties (SimulationId, NamespaceUri)
+           instead of a hardcoded map. A new plugin appears in the tree with zero
+           gateway changes.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============== CODEBASE STRUCTURE ============== -->
+  <section id="structure">
+    <div class="section-head">
+      <div class="kicker">Codebase</div>
+      <h2>Repository Structure</h2>
+      <p>Clean separation of concerns. Modules touch disjoint files to avoid merge conflicts.</p>
+    </div>
+
+    <div class="tree-wrap">
+      <pre class="tree"><span class="root">cip-sim/</span>
+├── <span class="dir">control_plane/</span>              <span class="comment"># Django application & REST API [P1]</span>
+│   ├── <span class="dir">apps/</span>
+│   │   ├── <span class="dir">dashboard/</span>          <span class="comment"># Dashboard proxy, session list & views [P1]</span>
+│   │   └── <span class="dir">sessions_mgr/</span>       <span class="comment"># Models, serializers, REST endpoints [P1/P3]</span>
+│   ├── <span class="dir">templates/</span>              <span class="comment"># UI templates (base, list, detail, create) [P1]</span>
+│   └── <span class="file">asgi.py</span>                 <span class="comment"># Channels WebSocket & HTTP routing [P1]</span>
+├── <span class="dir">gateway/</span>                    <span class="comment"># OPC UA Aggregation Server [P3]</span>
+│   ├── <span class="file">main.py</span>                 <span class="comment"># Aggregator entrypoint [P3]</span>
+│   ├── <span class="file">mirror.py</span>               <span class="comment"># Worker mirror & credential handling [P3]</span>
+│   └── <span class="file">server.py</span>               <span class="comment"># OPC UA server wrapper [P3]</span>
+├── <span class="dir">sim_runtime/</span>                <span class="comment"># Simulation worker engine [P1/P3]</span>
+│   ├── <span class="file">opcua_adapter.py</span>        <span class="comment"># OPC UA variable mapping & auth [P3]</span>
+│   └── <span class="file">shell.html</span>              <span class="comment"># Worker dashboard wrapper [P1]</span>
+├── <span class="dir">worker_pool/</span>                <span class="comment"># Process manager & port allocation [P2/P3]</span>
+│   ├── <span class="file">daemon.py</span>               <span class="comment"># Pool daemon [P2/P3]</span>
+│   └── <span class="file">port_allocator.py</span>       <span class="comment"># Port lease manager [P3]</span>
+├── <span class="planned-dir">deploy/</span>                     <span class="comment"># Systemd units & production configs [P2]</span>
+├── <span class="planned-dir">docs/</span>                       <span class="comment"># Operations & developer documentation [P2/P4]</span>
+├── <span class="planned-dir">tests/load/</span>                 <span class="comment"># Performance & load benchmark suite [P4]</span>
+├── <span class="planned-file">install.sh</span>                  <span class="comment"># Automated Ubuntu installer [P2]</span>
+└── <span class="planned-file">deploy.sh</span>                   <span class="comment"># Production update script [P2]</span></pre>
+    </div>
+  </section>
+
+  <!-- ============== ISSUES ============== -->
+  <section id="issues">
+    <div class="section-head">
+      <div class="kicker">Issues &amp; Tasks</div>
+      <h2>Open Items</h2>
+      <p>Tracked work assigned across Work Packets.</p>
+    </div>
+
+    <div class="issues">
+      <div class="issue">
+        <span class="tag bug">Bug</span>
+        <div>
+          <h4>Ghost rows on event consumer restart <span class="owner">P1</span></h4>
+          <p>If the consumer crashes or is restarted, non-terminal session rows remain in DB without active heartbeats. Fixed by DB reconciliation at consumer startup.</p>
+        </div>
+      </div>
+      <div class="issue">
+        <span class="tag design">Design</span>
+        <div>
+          <h4>Opt-in per-session OPC UA authentication <span class="owner">P3</span></h4>
+          <p>Provide optional credentials for environments exposing gateway outside the trusted intranet without breaking standard anonymous access.</p>
+        </div>
+      </div>
+      <div class="issue">
+        <span class="tag note">Note</span>
+        <div>
+          <h4>Empirical scaling benchmarks <span class="owner">P4</span></h4>
+          <p>Need exact memory and latency numbers for N=10 to N=100 active sessions to quantify platform hardware limits.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  <div class="container" style="padding: 0;">
+    <strong>Simulation Platform</strong> — Multi-Session OPC UA Gateway &amp; Control Plane
+    <div class="updated">Updated October 2026 · Ready for AI-Assisted Work Packet Execution</div>
+  </div>
+</footer>
+
+<script>
+  // Copy to clipboard helper for prompt text
+  function copyToClipboard(button, targetId) {
+    const textElement = document.getElementById(targetId);
+    if (!textElement) return;
+    const textToCopy = textElement.innerText || textElement.textContent;
+    navigator.clipboard.writeText(textToCopy).then(() => {
+      const originalText = button.innerHTML;
+      button.innerHTML = '✓ Prompt Copied!';
+      button.style.background = 'var(--green)';
+      button.style.color = 'var(--bg-0)';
+      setTimeout(() => {
+        button.innerHTML = originalText;
+        button.style.background = '';
+        button.style.color = '';
+      }, 2500);
+    }).catch(err => {
+      console.error('Failed to copy text: ', err);
+    });
+  }
+
+  // Feature tabs filtering
+  const ftabs = document.querySelectorAll('.ftab');
+  const cards = document.querySelectorAll('#cards .card');
+
+  ftabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const status = tab.dataset.status;
+      ftabs.forEach(t => t.classList.toggle('active', t === tab));
+      cards.forEach(card => {
+        const show = status === 'all' || card.dataset.status === status;
+        card.style.display = show ? '' : 'none';
+      });
+    });
+  });
+
+  // Entrance animations for scroll elements
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.style.opacity = '1';
+        e.target.style.transform = 'translateY(0)';
+        io.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.05 });
+
+  document.querySelectorAll('#cards .card, .tl-item, .step-card, .order-step, .packet, .glance .col').forEach((el, i) => {
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(8px)';
+    el.style.transition = `opacity .5s ease ${(i % 20) * 0.02}s, transform .5s ease ${(i % 20) * 0.02}s`;
+    io.observe(el);
+  });
+</script>
+</body>
+</html>
