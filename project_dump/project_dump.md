@@ -1,8 +1,8 @@
 # Project Dump: SimulaattoriProjekti
 
 - **Root:** `C:\Users\User\Documents\GitHub\SimulaattoriProjekti`
-- **Generated:** 2026-10-07T19:17:33
-- **Text files:** 70
+- **Generated:** 2026-10-19T16:29:57
+- **Text files:** 82
 - **Binary skipped:** 0
 - **Too large skipped:** 0
 
@@ -13,8 +13,16 @@ SimulaattoriProjekti/
 ├── control_plane/
 │   ├── apps/
 │   │   ├── dashboard/
+│   │   │   ├── tests/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── test_live.py
+│   │   │   │   ├── test_pages.py
+│   │   │   │   ├── test_proxy.py
+│   │   │   │   └── test_reconcile.py
 │   │   │   ├── __init__.py
 │   │   │   ├── apps.py
+│   │   │   ├── consumers.py
+│   │   │   ├── routing.py
 │   │   │   ├── urls.py
 │   │   │   └── views.py
 │   │   ├── sessions_mgr/
@@ -41,6 +49,10 @@ SimulaattoriProjekti/
 │   │   └── prod.py
 │   ├── templates/
 │   │   ├── sessions/
+│   │   │   ├── _live.html
+│   │   │   ├── _table.html
+│   │   │   ├── create.html
+│   │   │   ├── detail.html
 │   │   │   └── list.html
 │   │   └── base.html
 │   ├── __init__.py
@@ -101,6 +113,7 @@ SimulaattoriProjekti/
 ├── .gitignore
 ├── manage.py
 ├── pyproject.toml
+├── README.md
 └── requirements.txt
 ```
 
@@ -169,6 +182,13 @@ Thumbs.db
 .run/
 *.pid
 *.log
+```
+
+### `README.md`
+
+```markdown
+Project_dump löytyy täältä:
+https://github.com/laksuni/misc/tree/main/project_dump
 ```
 
 ### `manage.py`
@@ -248,7 +268,8 @@ from __future__ import annotations
 
 import os
 
-from channels.routing import ProtocolTypeRouter
+from channels.routing import ProtocolTypeRouter, URLRouter
+from channels.security.websocket import AllowedHostsOriginValidator
 from django.core.asgi import get_asgi_application
 
 
@@ -259,9 +280,16 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "control_plane.settings.dev")
 # consumers). Order matters.
 django_asgi = get_asgi_application()
 
+from control_plane.apps.dashboard.routing import websocket_urlpatterns  # noqa: E402
+
+
 application = ProtocolTypeRouter({
     "http": django_asgi,
-    # "websocket": ... added when the Channels consumer lands
+    # The origin check rejects WebSocket connections opened by pages on
+    # other sites; browsers do not apply same-origin rules to sockets.
+    "websocket": AllowedHostsOriginValidator(
+        URLRouter(websocket_urlpatterns),
+    ),
 })
 ```
 
@@ -334,6 +362,57 @@ class DashboardConfig(AppConfig):
     verbose_name = "Operator Dashboard"
 ```
 
+### `control_plane/apps/dashboard/consumers.py`
+
+```python
+"""WebSocket consumer for live session updates.
+
+The event consumer (run_event_consumer) writes each lifecycle event to
+the database and then announces it to the SESSIONS_GROUP channel group.
+Every connected browser is a member of that group and gets the message
+forwarded as JSON. Browsers only listen; nothing they send is acted on.
+
+Messages carry the session summary, never the capability token: the
+group is broadcast to every open list page.
+"""
+
+from __future__ import annotations
+
+from channels.generic.websocket import AsyncJsonWebsocketConsumer
+
+
+SESSIONS_GROUP = "sessions"
+
+
+class SessionsConsumer(AsyncJsonWebsocketConsumer):
+    async def connect(self) -> None:
+        await self.channel_layer.group_add(SESSIONS_GROUP, self.channel_name)
+        await self.accept()
+
+    async def disconnect(self, code: int) -> None:  # noqa: ARG002
+        await self.channel_layer.group_discard(SESSIONS_GROUP, self.channel_name)
+
+    async def session_changed(self, message: dict) -> None:
+        """Handler for group messages of type "session.changed"."""
+        await self.send_json({
+            "type": "session.changed",
+            "session": message["session"],
+        })
+```
+
+### `control_plane/apps/dashboard/routing.py`
+
+```python
+from django.urls import path
+
+from control_plane.apps.dashboard import consumers
+
+
+websocket_urlpatterns = [
+    path("ws/sessions/", consumers.SessionsConsumer.as_asgi()),
+]
+```
+
 ### `control_plane/apps/dashboard/urls.py`
 
 ```python
@@ -346,6 +425,15 @@ app_name = "dashboard"
 
 urlpatterns = [
     path("", views.session_list, name="session-list"),
+    path("sessions/rows/", views.session_rows, name="session-rows"),
+    path("sessions/new/", views.session_create, name="session-create"),
+    path("sessions/<str:token>/", views.session_detail, name="session-detail"),
+    # The trailing slash matters: the worker page fetches 'api/state'
+    # relative to its own URL, which only lands under /s/<name>/ when
+    # the page URL ends in a slash. APPEND_SLASH redirects the bare form.
+    path("s/<str:name>/", views.session_proxy, name="session-proxy"),
+    path("s/<str:name>/<path:path>", views.session_proxy,
+         name="session-proxy-path"),
 ]
 ```
 
@@ -354,29 +442,590 @@ urlpatterns = [
 ```python
 """HTML views for the operator dashboard.
 
-Reads the same Session rows the REST API does. The list view links each
-named session to its dashboard URL; the proxy view that serves those
-URLs arrives in Phase 3.
+Reads the same Session rows the REST API does. Pages:
+
+    /                          session list (no tokens, safe for anyone)
+    /sessions/rows/            the list's table, re-fetched on live updates
+    /sessions/new/             create-session form
+    /sessions/<token>/         session detail with stop button
+    /s/<name>/...              proxy to the worker's loopback dashboard
+
+The detail page is gated by the capability token, exactly like the
+REST endpoint it calls. The list never links to it: the only ways in
+are the redirect after create and a bookmark.
+
+Create and stop go through the REST API from the browser rather than
+calling the API's internals, so the UI exercises the same code path as
+curl and stack.sh.
 """
 
 from __future__ import annotations
 
-from django.shortcuts import render
+import asyncio
+import urllib.error
+import urllib.request
+import uuid
 
-from control_plane.apps.sessions_mgr.models import Session
+from django.conf import settings
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404, render
+from django.views.decorators.http import require_GET
+
+from control_plane.apps.sessions_mgr.models import Session, SimulationCatalog
 
 
-def session_list(request):
+# Worker dashboards are tiny and on loopback. If one does not answer
+# within this, it is wedged; fail fast instead of tying up the browser.
+_PROXY_TIMEOUT = 2.0
+
+# The worker is always on loopback. An empty ProxyHandler stops urllib
+# from routing these requests through an http_proxy set in the
+# environment.
+_LOOPBACK_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+# Response headers copied from the worker. Everything else (Server,
+# Date, Content-Length, connection headers) is Django's business.
+_PASSTHROUGH_HEADERS = ("Content-Type", "Cache-Control")
+
+
+# ---------------------------------------------------------------------------
+# Session list
+# ---------------------------------------------------------------------------
+
+def _list_context(request) -> dict:
     include_stopped = request.GET.get("include_stopped") in ("1", "true", "yes")
     qs = Session.objects.all()
     if not include_stopped:
         qs = qs.exclude(
             status__in=[Session.STATUS_STOPPED, Session.STATUS_FAILED],
         )
-    return render(request, "sessions/list.html", {
+    return {
         "sessions": qs,
         "include_stopped": include_stopped,
+        "endpoint_url": _endpoint_url(),
+    }
+
+
+def session_list(request):
+    return render(request, "sessions/list.html", _list_context(request))
+
+
+def session_rows(request):
+    """Just the table, for the list page to swap in on a live update.
+
+    Rendering stays on the server so the row markup lives in one
+    template instead of being duplicated in JavaScript.
+    """
+    return render(request, "sessions/_table.html", _list_context(request))
+
+
+# ---------------------------------------------------------------------------
+# Create and detail
+# ---------------------------------------------------------------------------
+
+def session_create(request):
+    simulations = SimulationCatalog.objects.filter(is_active=True)
+    return render(request, "sessions/create.html", {
+        "simulations": simulations,
     })
+
+
+def session_detail(request, token: str):
+    session = get_object_or_404(Session, token=token)
+    return render(request, "sessions/detail.html", {
+        "session": session,
+        "endpoint_url": _endpoint_url(),
+    })
+
+
+def _endpoint_url() -> str:
+    host = getattr(settings, "GATEWAY_PUBLIC_HOST", "")
+    return f"opc.tcp://{host}/gateway/" if host else ""
+
+
+# ---------------------------------------------------------------------------
+# Dashboard proxy
+# ---------------------------------------------------------------------------
+
+@require_GET
+async def session_proxy(request, name: str, path: str = ""):
+    """Serve a worker's dashboard at /s/<name>/ through Django.
+
+    The worker's HTTP server binds to 127.0.0.1 only, so the browser
+    cannot reach it directly; Django fetches on its behalf. Only port
+    8000 needs to be open in the firewall.
+
+    This is an async view on purpose. Under ASGI, Django runs sync
+    views on one shared thread, and every open dashboard polls four
+    times a second. One wedged worker would then stall the whole UI
+    for the length of the timeout. Here only the blocking HTTP call
+    goes to a thread, and many can be in flight at once.
+    """
+    session = await _find_session(name)
+    if session is None:
+        return _plain(404, f"no session named {name!r}")
+
+    if session.status != Session.STATUS_RUNNING or not session.http_port:
+        return _plain(409, f"session {name!r} is {session.status}, not running")
+
+    url = f"http://127.0.0.1:{session.http_port}/{path}"
+    if request.META.get("QUERY_STRING"):
+        url += "?" + request.META["QUERY_STRING"]
+
+    try:
+        status, headers, body = await asyncio.to_thread(_fetch, url)
+    except (urllib.error.URLError, OSError):
+        return _plain(502, f"session {name!r} dashboard is not responding")
+
+    response = HttpResponse(body, status=status)
+    for header in _PASSTHROUGH_HEADERS:
+        if headers.get(header):
+            response[header] = headers[header]
+    return response
+
+
+async def _find_session(name: str) -> Session | None:
+    """Look up by slug first, then by UUID for sessions without one."""
+    session = await Session.objects.filter(slug=name).afirst()
+    if session is not None:
+        return session
+    try:
+        session_id = uuid.UUID(name)
+    except ValueError:
+        return None
+    return await Session.objects.filter(id=session_id).afirst()
+
+
+def _fetch(url: str):
+    """Blocking GET. Runs in a worker thread.
+
+    A 4xx/5xx from the worker is a real answer and is relayed as-is;
+    only a failure to get any answer raises.
+    """
+    try:
+        with _LOOPBACK_OPENER.open(url, timeout=_PROXY_TIMEOUT) as resp:
+            return resp.status, resp.headers, resp.read()
+    except urllib.error.HTTPError as exc:
+        return exc.code, exc.headers, exc.read()
+
+
+def _plain(status: int, message: str) -> HttpResponse:
+    return HttpResponse(
+        message + "\n", status=status, content_type="text/plain; charset=utf-8",
+    )
+```
+
+### `control_plane/apps/dashboard/tests/__init__.py`
+
+```python
+
+```
+
+### `control_plane/apps/dashboard/tests/test_live.py`
+
+```python
+"""Live updates: event consumer → channel group → WebSocket → browser.
+
+Uses the in-memory channel layer so no Redis is needed. Talks raw ASGI
+through asgiref's ApplicationCommunicator: channels.testing would be
+shorter but imports daphne, which the project does not depend on.
+"""
+
+from __future__ import annotations
+
+import json
+
+from asgiref.testing import ApplicationCommunicator
+from channels.layers import get_channel_layer
+from channels.routing import URLRouter
+from channels.security.websocket import AllowedHostsOriginValidator
+from django.test import SimpleTestCase, override_settings
+
+from control_plane.asgi import application
+from control_plane.apps.dashboard.consumers import SESSIONS_GROUP
+from control_plane.apps.dashboard.routing import websocket_urlpatterns
+
+
+_IN_MEMORY = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
+
+
+@override_settings(CHANNEL_LAYERS=_IN_MEMORY)
+class LiveUpdateTests(SimpleTestCase):
+    async def _connect(self, origin: bytes = b"http://localhost:8000",
+                       app=application):
+        comm = ApplicationCommunicator(app, {
+            "type": "websocket",
+            "path": "/ws/sessions/",
+            "headers": [(b"origin", origin), (b"host", b"localhost:8000")],
+            "subprotocols": [],
+        })
+        await comm.send_input({"type": "websocket.connect"})
+        reply = await comm.receive_output(timeout=2)
+        return comm, reply["type"] == "websocket.accept"
+
+    async def _disconnect(self, comm) -> None:
+        await comm.send_input({"type": "websocket.disconnect", "code": 1000})
+        await comm.wait(timeout=2)
+
+    async def test_group_message_reaches_browser(self):
+        comm, connected = await self._connect()
+        self.assertTrue(connected)
+
+        summary = {"id": "abc", "slug": "cip_live", "status": "running"}
+        await get_channel_layer().group_send(SESSIONS_GROUP, {
+            "type": "session.changed", "session": summary,
+        })
+
+        out = await comm.receive_output(timeout=2)
+        self.assertEqual(out["type"], "websocket.send")
+        self.assertEqual(json.loads(out["text"]),
+                         {"type": "session.changed", "session": summary})
+        await self._disconnect(comm)
+
+    @override_settings(ALLOWED_HOSTS=["localhost"])
+    async def test_foreign_origin_rejected(self):
+        # The validator reads ALLOWED_HOSTS once, when it is built, and
+        # dev settings allow "*". Build one under production-like hosts.
+        app = AllowedHostsOriginValidator(URLRouter(websocket_urlpatterns))
+        comm, connected = await self._connect(
+            origin=b"http://evil.example", app=app,
+        )
+        self.assertFalse(connected)
+        await comm.wait(timeout=2)
+```
+
+### `control_plane/apps/dashboard/tests/test_pages.py`
+
+```python
+"""HTML pages: list, rows fragment, create form, detail."""
+
+from __future__ import annotations
+
+from django.test import TestCase, override_settings
+
+from control_plane.apps.sessions_mgr.models import Session, SimulationCatalog
+
+
+@override_settings(GATEWAY_PUBLIC_HOST="10.0.0.5:8080")
+class PageTests(TestCase):
+    def setUp(self) -> None:
+        self.running = Session.objects.create(
+            simulation_id="cip", slug="cip_live",
+            status=Session.STATUS_RUNNING, http_port=6000, port=5000,
+        )
+        self.stopped = Session.objects.create(
+            simulation_id="cip", slug="old_one", status=Session.STATUS_STOPPED,
+        )
+
+    def test_list_hides_stopped_by_default(self):
+        r = self.client.get("/")
+        self.assertContains(r, "cip_live")
+        self.assertNotContains(r, "old_one")
+        self.assertContains(r, "opc.tcp://10.0.0.5:8080/gateway/")
+
+    def test_list_shows_stopped_on_request(self):
+        r = self.client.get("/?include_stopped=1")
+        self.assertContains(r, "old_one")
+
+    def test_list_never_leaks_tokens(self):
+        for url in ("/", "/?include_stopped=1", "/sessions/rows/?include_stopped=1"):
+            r = self.client.get(url)
+            self.assertNotContains(r, self.running.token)
+            self.assertNotContains(r, self.stopped.token)
+
+    def test_dashboard_link_only_when_running(self):
+        r = self.client.get("/sessions/rows/?include_stopped=1")
+        self.assertContains(r, 'href="/s/cip_live/"')
+        self.assertNotContains(r, 'href="/s/old_one/"')
+
+    def test_rows_fragment_carries_count(self):
+        r = self.client.get("/sessions/rows/")
+        self.assertContains(r, 'data-count="1"')
+        self.assertNotContains(r, "<html")
+
+    def test_detail_with_token(self):
+        r = self.client.get(f"/sessions/{self.running.token}/")
+        self.assertContains(r, "Stop session")
+        self.assertContains(r, "Sessions → cip_live")
+        self.assertContains(r, f"/api/sessions/{self.running.token}/")
+        self.assertContains(r, 'href="/s/cip_live/"')
+
+    def test_detail_of_ended_session_has_no_stop_button(self):
+        r = self.client.get(f"/sessions/{self.stopped.token}/")
+        self.assertEqual(r.status_code, 200)
+        self.assertNotContains(r, 'id="stop-btn"')
+
+    def test_detail_wrong_token_404(self):
+        r = self.client.get("/sessions/not-a-real-token/")
+        self.assertEqual(r.status_code, 404)
+
+    def test_create_lists_active_simulations(self):
+        SimulationCatalog.objects.create(
+            simulation_id="cip", display_name="CIP Wash", version="1.0",
+        )
+        SimulationCatalog.objects.create(
+            simulation_id="hidden", display_name="Hidden Sim", version="1.0",
+            is_active=False,
+        )
+        r = self.client.get("/sessions/new/")
+        self.assertContains(r, "CIP Wash")
+        self.assertNotContains(r, "Hidden Sim")
+
+    def test_create_with_empty_catalog_explains(self):
+        r = self.client.get("/sessions/new/")
+        self.assertContains(r, "sync_catalog")
+```
+
+### `control_plane/apps/dashboard/tests/test_proxy.py`
+
+```python
+"""Dashboard proxy: /s/<name>/ forwards to the worker's loopback server.
+
+A tiny http.server stands in for the worker so no simulation has to
+run. The error cases are the point: a student opening a link to a
+session that is gone must get a clear answer, not a hang.
+"""
+
+from __future__ import annotations
+
+import socket
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+from django.test import TestCase
+
+from control_plane.apps.sessions_mgr.models import Session
+
+
+class _StubWorker(BaseHTTPRequestHandler):
+    def do_GET(self) -> None:  # noqa: N802
+        if self.path == "/":
+            body, ctype = b"<html>worker page</html>", "text/html; charset=utf-8"
+        elif self.path == "/api/state":
+            body, ctype = b'{"state": {}}', "application/json"
+        else:
+            self.send_error(404)
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, *args) -> None:
+        pass
+
+
+def _free_port() -> int:
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
+class ProxyTests(TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        cls.worker = ThreadingHTTPServer(("127.0.0.1", 0), _StubWorker)
+        threading.Thread(target=cls.worker.serve_forever, daemon=True).start()
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls.worker.shutdown()
+        cls.worker.server_close()
+        super().tearDownClass()
+
+    def _session(self, **kwargs) -> Session:
+        fields = {
+            "simulation_id": "cip",
+            "slug": "cip_live",
+            "status": Session.STATUS_RUNNING,
+            "http_port": self.worker.server_address[1],
+        }
+        fields.update(kwargs)
+        return Session.objects.create(**fields)
+
+    def test_serves_worker_page(self):
+        self._session()
+        r = self.client.get("/s/cip_live/")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.content, b"<html>worker page</html>")
+        self.assertEqual(r["Content-Type"], "text/html; charset=utf-8")
+
+    def test_relative_state_fetch_lands_on_worker(self):
+        # shell.html fetches 'api/state' relative to /s/cip_live/.
+        self._session()
+        r = self.client.get("/s/cip_live/api/state")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json(), {"state": {}})
+        self.assertEqual(r["Cache-Control"], "no-store")
+
+    def test_worker_404_is_relayed(self):
+        self._session()
+        r = self.client.get("/s/cip_live/nope")
+        self.assertEqual(r.status_code, 404)
+
+    def test_session_without_slug_by_uuid(self):
+        s = self._session(slug=None)
+        r = self.client.get(f"/s/{s.id}/")
+        self.assertEqual(r.status_code, 200)
+
+    def test_bare_url_redirects_to_trailing_slash(self):
+        self._session()
+        r = self.client.get("/s/cip_live")
+        self.assertEqual(r.status_code, 301)
+        self.assertEqual(r["Location"], "/s/cip_live/")
+
+    def test_unknown_session_404(self):
+        r = self.client.get("/s/ghost/")
+        self.assertEqual(r.status_code, 404)
+
+    def test_not_running_409(self):
+        self._session(status=Session.STATUS_STARTING)
+        r = self.client.get("/s/cip_live/")
+        self.assertEqual(r.status_code, 409)
+        self.assertIn(b"starting", r.content)
+
+    def test_no_http_port_yet_409(self):
+        self._session(http_port=None)
+        r = self.client.get("/s/cip_live/")
+        self.assertEqual(r.status_code, 409)
+
+    def test_dead_worker_502(self):
+        self._session(http_port=_free_port())
+        r = self.client.get("/s/cip_live/")
+        self.assertEqual(r.status_code, 502)
+
+    def test_only_get(self):
+        self._session()
+        r = self.client.post("/s/cip_live/")
+        self.assertEqual(r.status_code, 405)
+```
+
+### `control_plane/apps/dashboard/tests/test_reconcile.py`
+
+```python
+"""Event consumer startup reconciliation ("ghost rows").
+
+The reconciliation code runs its DB work in a thread, so these are
+TransactionTestCases: rows must be committed to be visible there.
+"""
+
+from __future__ import annotations
+
+import asyncio
+from datetime import timedelta
+
+import fakeredis.aioredis
+from channels.layers import get_channel_layer
+from django.test import TransactionTestCase, override_settings
+from django.utils import timezone
+
+from control_plane.apps.dashboard.consumers import SESSIONS_GROUP
+from control_plane.apps.sessions_mgr.management.commands.run_event_consumer import (
+    Command,
+)
+from control_plane.apps.sessions_mgr.models import Session, SessionEvent
+from shared.constants import HEARTBEAT_TTL, REDIS_HEARTBEAT_PREFIX
+
+
+_IN_MEMORY = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
+
+
+def _aged(session: Session, seconds: int = HEARTBEAT_TTL + 60) -> Session:
+    # created_at is auto_now_add, so backdate it with an update.
+    Session.objects.filter(id=session.id).update(
+        created_at=timezone.now() - timedelta(seconds=seconds),
+    )
+    return session
+
+
+@override_settings(CHANNEL_LAYERS=_IN_MEMORY)
+class ReconcileTests(TransactionTestCase):
+    def setUp(self) -> None:
+        self.redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
+        self.cmd = Command()
+        self.cmd._layer = get_channel_layer()
+
+    def _run(self, coro):
+        return asyncio.run(coro)
+
+    def _make(self, status: str, **kwargs) -> Session:
+        return _aged(Session.objects.create(
+            simulation_id="cip", status=status,
+            port=5000, http_port=6000, pid=123, **kwargs,
+        ))
+
+    def test_orphan_without_heartbeat_fails(self):
+        s = self._make(Session.STATUS_RUNNING, slug="ghost")
+        self._run(self.cmd._reconcile(self.redis))
+
+        s.refresh_from_db()
+        self.assertEqual(s.status, Session.STATUS_FAILED)
+        self.assertIsNone(s.http_port)
+        self.assertIsNone(s.port)
+        self.assertIsNotNone(s.stopped_at)
+        event = s.events.first()
+        self.assertEqual(event.event, SessionEvent.EVENT_FAILED)
+        self.assertEqual(event.detail, {"error": "orphaned_on_consumer_startup"})
+
+    def test_live_session_with_heartbeat_untouched(self):
+        s = self._make(Session.STATUS_RUNNING)
+
+        async def go():
+            await self.redis.set(f"{REDIS_HEARTBEAT_PREFIX}{s.id}", "{}")
+            await self.cmd._reconcile(self.redis)
+
+        self._run(go())
+        s.refresh_from_db()
+        self.assertEqual(s.status, Session.STATUS_RUNNING)
+
+    def test_fresh_session_within_grace_untouched(self):
+        s = Session.objects.create(simulation_id="cip",
+                                   status=Session.STATUS_PENDING)
+        self._run(self.cmd._reconcile(self.redis))
+        s.refresh_from_db()
+        self.assertEqual(s.status, Session.STATUS_PENDING)
+
+    def test_stopping_orphan_becomes_stopped(self):
+        s = self._make(Session.STATUS_STOPPING)
+        self._run(self.cmd._reconcile(self.redis))
+        s.refresh_from_db()
+        self.assertEqual(s.status, Session.STATUS_STOPPED)
+        self.assertEqual(s.events.first().event, SessionEvent.EVENT_STOPPED)
+
+    def test_terminal_rows_ignored(self):
+        s = self._make(Session.STATUS_STOPPED)
+        self._run(self.cmd._reconcile(self.redis))
+        self.assertEqual(s.events.count(), 0)
+
+    def test_redis_down_touches_nothing(self):
+        s = self._make(Session.STATUS_RUNNING)
+
+        class Broken:
+            async def exists(self, *_):
+                raise ConnectionError("redis is down")
+
+        self._run(self.cmd._reconcile(Broken()))
+        s.refresh_from_db()
+        self.assertEqual(s.status, Session.STATUS_RUNNING)
+
+    def test_orphan_is_announced_without_token(self):
+        s = self._make(Session.STATUS_RUNNING, slug="ghost")
+
+        async def go():
+            layer = self.cmd._layer
+            channel = await layer.new_channel()
+            await layer.group_add(SESSIONS_GROUP, channel)
+            await self.cmd._reconcile(self.redis)
+            return await asyncio.wait_for(layer.receive(channel), 2)
+
+        msg = self._run(go())
+        self.assertEqual(msg["type"], "session.changed")
+        self.assertEqual(msg["session"]["id"], str(s.id))
+        self.assertEqual(msg["session"]["status"], Session.STATUS_FAILED)
+        self.assertNotIn("token", msg["session"])
 ```
 
 ### `control_plane/apps/sessions_mgr/__init__.py`
@@ -1251,27 +1900,37 @@ class Command(BaseCommand):
 
 Long-lived process. Reads the events stream via a consumer group,
 updates the corresponding Session row, appends a SessionEvent, and
-XACKs. Run as a systemd service in production, or by hand during
-development:
+XACKs. After each change it announces the session to the dashboard's
+channel group so open browser pages update live. Run as a systemd
+service in production, or by hand during development:
 
     python manage.py run_event_consumer
+
+On startup it first reconciles the database against Redis: any session
+the database thinks is live but that has no heartbeat key is an orphan
+left behind by a crash or a stack reset, and is closed out.
 """
 
 from __future__ import annotations
 
 import asyncio
 import uuid
+from datetime import timedelta
 
 import redis.asyncio as aioredis
+from channels.layers import get_channel_layer
 from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.db import close_old_connections
 from django.utils import timezone
 
+from control_plane.apps.dashboard.consumers import SESSIONS_GROUP
 from control_plane.apps.sessions_mgr.models import Session, SessionEvent
 from shared.constants import (
     EVT_CONSUMER_GROUP,
+    HEARTBEAT_TTL,
     REDIS_EVT_STREAM,
+    REDIS_HEARTBEAT_PREFIX,
 )
 from shared.logging import get_logger
 from shared.schemas import (
@@ -1288,6 +1947,8 @@ log = get_logger(__name__)
 
 _READ_BLOCK_MS = 2000
 
+_ORPHAN_REASON = "orphaned_on_consumer_startup"
+
 
 class Command(BaseCommand):
     help = "Consume session lifecycle events and update the database."
@@ -1302,8 +1963,10 @@ class Command(BaseCommand):
         redis_url = getattr(settings, "REDIS_URL", None) \
             or "redis://localhost:6379/0"
         client = aioredis.from_url(redis_url, decode_responses=True)
+        self._layer = get_channel_layer()
 
         await self._ensure_group(client)
+        await self._reconcile(client)
         consumer = f"control-plane-{timezone.now().timestamp():.0f}"
 
         self.stdout.write(f"event consumer started as {consumer}")
@@ -1366,9 +2029,56 @@ class Command(BaseCommand):
 
         # DB work is synchronous; run it in a thread so the event loop
         # stays responsive.
-        await asyncio.to_thread(self._apply, event)
+        session = await asyncio.to_thread(self._apply, event)
+        if session is not None:
+            await self._announce(session)
 
-    def _apply(self, event) -> None:
+    async def _announce(self, session: Session) -> None:
+        """Tell open dashboard pages that `session` changed.
+
+        Best effort. The database is already updated and the event will
+        be XACKed regardless; a page that misses this catches up on its
+        next reload or reconnect.
+        """
+        if self._layer is None:
+            return
+        try:
+            await self._layer.group_send(SESSIONS_GROUP, {
+                "type": "session.changed",
+                "session": _summary(session),
+            })
+        except Exception:
+            log.exception("could not announce session change",
+                          extra={"session_id": str(session.id)})
+
+    async def _reconcile(self, client: aioredis.Redis) -> None:
+        """Close out sessions the database thinks are live but are not.
+
+        A live worker refreshes cip:hb:<uuid> every HEARTBEAT_INTERVAL
+        seconds with a HEARTBEAT_TTL expiry, so a missing key means no
+        worker. Sessions younger than HEARTBEAT_TTL are skipped: a fresh
+        session has not had time to write its first heartbeat.
+
+        If Redis cannot be read, nothing is touched. Without heartbeat
+        data every session would look like an orphan.
+        """
+        try:
+            candidates = await asyncio.to_thread(_live_sessions_before_grace)
+            orphans = [
+                s for s in candidates
+                if not await client.exists(f"{REDIS_HEARTBEAT_PREFIX}{s.id}")
+            ]
+        except Exception:
+            log.exception("reconciliation skipped: could not read state")
+            return
+
+        closed = await asyncio.to_thread(_close_orphans, orphans)
+        log.info("reconciliation done",
+                 extra={"checked": len(candidates), "orphans": len(closed)})
+        for session in closed:
+            await self._announce(session)
+
+    def _apply(self, event) -> Session | None:
         close_old_connections()
 
         session = _lookup_session(event.session_id)
@@ -1377,7 +2087,7 @@ class Command(BaseCommand):
                         extra={"session_id": event.session_id,
                                "session_name": event.session_name,
                                "kind": event.kind})
-            return
+            return None
 
         if isinstance(event, SessionStartedEvent):
             session.status = Session.STATUS_RUNNING
@@ -1410,10 +2120,11 @@ class Command(BaseCommand):
             session.status = Session.STATUS_STOPPED
             session.stopped_at = timezone.now()
             session.port = None
+            session.http_port = None
             session.pid = None
             session.advertised_endpoint = ""
             session.save(update_fields=[
-                "status", "stopped_at", "port", "pid",
+                "status", "stopped_at", "port", "http_port", "pid",
                 "advertised_endpoint",
             ])
             _record(session, SessionEvent.EVENT_STOPPED, {
@@ -1424,10 +2135,67 @@ class Command(BaseCommand):
         elif isinstance(event, SessionFailedEvent):
             session.status = Session.STATUS_FAILED
             session.stopped_at = timezone.now()
-            session.save(update_fields=["status", "stopped_at"])
+            session.http_port = None
+            session.save(update_fields=["status", "stopped_at", "http_port"])
             _record(session, SessionEvent.EVENT_FAILED, {
                 "error": event.error,
             })
+
+        return session
+
+
+def _summary(session: Session) -> dict:
+    """What the browser is told about a change. Never the token."""
+    return {
+        "id": str(session.id),
+        "slug": session.slug,
+        "simulation_id": session.simulation_id,
+        "status": session.status,
+        "port": session.port,
+        "http_port": session.http_port,
+    }
+
+
+def _live_sessions_before_grace() -> list[Session]:
+    close_old_connections()
+    cutoff = timezone.now() - timedelta(seconds=HEARTBEAT_TTL)
+    return list(
+        Session.objects
+        .exclude(status__in=[Session.STATUS_STOPPED, Session.STATUS_FAILED])
+        .filter(created_at__lt=cutoff)
+    )
+
+
+def _close_orphans(orphans: list[Session]) -> list[Session]:
+    """Move orphans to a terminal state. Returns the rows changed.
+
+    A session that was already stopping is recorded as stopped, since
+    that is where it was headed; anything else failed. The update is
+    conditional on the status read earlier, so a row changed in the
+    meantime (e.g. a stop from the API) is left alone.
+    """
+    close_old_connections()
+    closed = []
+    for s in orphans:
+        stopping = s.status == Session.STATUS_STOPPING
+        new_status = Session.STATUS_STOPPED if stopping else Session.STATUS_FAILED
+        changed = Session.objects.filter(id=s.id, status=s.status).update(
+            status=new_status,
+            stopped_at=timezone.now(),
+            port=None,
+            http_port=None,
+            pid=None,
+            advertised_endpoint="",
+        )
+        if not changed:
+            continue
+        s.refresh_from_db()
+        if stopping:
+            _record(s, SessionEvent.EVENT_STOPPED, {"reason": _ORPHAN_REASON})
+        else:
+            _record(s, SessionEvent.EVENT_FAILED, {"error": _ORPHAN_REASON})
+        closed.append(s)
+    return closed
 
 
 def _lookup_session(session_id: str) -> Session | None:
@@ -1649,10 +2417,14 @@ DATABASES = {
 
 _redis_url = _env("REDIS_URL", "redis://localhost:6379/0")
 
+# channels_redis waits for messages with a 5 s blocking pop, and redis-py
+# 8 defaults socket_timeout to 5 s as well. Left at the default, an idle
+# WebSocket dies with a TimeoutError after about five seconds, so the
+# socket timeout must be longer than the blocking pop.
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {"hosts": [_redis_url]},
+        "CONFIG": {"hosts": [{"address": _redis_url, "socket_timeout": 15}]},
     },
 }
 
@@ -1922,6 +2694,96 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     cursor: pointer;
   }
   .muted { color: var(--ink-faint); }
+  .toolbar .actions {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+  }
+  .btn {
+    display: inline-block;
+    padding: 7px 14px;
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    background: var(--accent);
+    color: #fff;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .btn:hover { filter: brightness(1.08); }
+  .btn:disabled { opacity: .5; cursor: default; filter: none; }
+  .btn-secondary {
+    background: var(--panel);
+    color: var(--accent);
+  }
+  .btn-danger {
+    background: var(--bad);
+    border-color: var(--bad);
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    margin-bottom: 16px;
+  }
+  .panel h2 {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 0 0 12px;
+  }
+  dl.facts {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 8px 20px;
+    margin: 0;
+  }
+  dl.facts dt { color: var(--ink-faint); font-size: 13px; }
+  dl.facts dd { margin: 0; font-size: 13px; overflow-wrap: anywhere; }
+  .field { margin-bottom: 16px; }
+  .field label {
+    display: block;
+    font-weight: 600;
+    font-size: 13px;
+    margin-bottom: 4px;
+  }
+  .field input, .field select {
+    width: 100%;
+    max-width: 420px;
+    padding: 7px 10px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    font: inherit;
+    background: #fff;
+  }
+  .field .hint { color: var(--ink-faint); font-size: 12px; margin-top: 4px; }
+  .field .error { color: var(--bad); font-size: 12px; margin-top: 4px; }
+  .notice {
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    margin-bottom: 16px;
+  }
+  .notice-warn { background: #fff4e0; color: #8a4b00; }
+  .notice-bad  { background: #fde8e8; color: var(--bad); }
+  .notice-info { background: #e8f2fc; color: #0b5394; }
+  .live {
+    font-size: 12px;
+    color: var(--ink-faint);
+  }
+  .live::before {
+    content: "";
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+    background: var(--ink-faint);
+  }
+  .live.on::before { background: var(--ok); }
+  .live.off::before { background: var(--bad); }
 </style>
 </head>
 <body>
@@ -1929,42 +2791,70 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
   <a class="brand" href="/">CIP Simulation Platform</a>
   <nav>
     <a href="/">Sessions</a>
+    <a href="/sessions/new/">New session</a>
     <a href="/api/sessions/">API</a>
   </nav>
 </header>
 <main>
   {% block content %}{% endblock %}
 </main>
+{% block scripts %}{% endblock %}
 </body>
 </html>
 ```
 
-### `control_plane/templates/sessions/list.html`
+### `control_plane/templates/sessions/_live.html`
 
 ```html
-{% extends "base.html" %}
+<script>
+// Live session updates over WebSocket. Shared by the list and detail
+// pages. The server pushes one message per session change; each page
+// decides what to redraw. If the socket drops (Django restart, network
+// blip) it reconnects with a growing delay, capped at 15 s.
+//
+// onChange(session) gets the pushed session summary, or null after a
+// reconnect: changes made while offline were missed, so redraw all.
+function connectSessionEvents(onChange) {
+  var indicator = document.getElementById('live');
+  var delay = 1000;
+  var everConnected = false;
 
-{% block title %}Sessions · CIP Simulation Platform{% endblock %}
+  function setLive(on) {
+    if (!indicator) return;
+    indicator.className = 'live ' + (on ? 'on' : 'off');
+    indicator.textContent = on ? 'live' : 'offline — reconnecting';
+  }
 
-{% block content %}
-<h1>Active sessions</h1>
-<p class="subtitle">
-  Each session is reachable through the gateway at
-  <code>opc.tcp://&lt;server&gt;:8080/gateway/</code>.
-</p>
+  function open() {
+    var scheme = location.protocol === 'https:' ? 'wss://' : 'ws://';
+    var ws = new WebSocket(scheme + location.host + '/ws/sessions/');
+    ws.onopen = function () {
+      delay = 1000;
+      setLive(true);
+      if (everConnected) onChange(null);
+      everConnected = true;
+    };
+    ws.onmessage = function (e) {
+      var msg;
+      try { msg = JSON.parse(e.data); } catch (err) { return; }
+      if (msg.type === 'session.changed') onChange(msg.session);
+    };
+    ws.onclose = function () {
+      setLive(false);
+      setTimeout(open, delay);
+      delay = Math.min(delay * 2, 15000);
+    };
+  }
 
-<div class="toolbar">
-  <div class="muted">
-    {{ sessions|length }} session{{ sessions|length|pluralize }}
-  </div>
-  <label>
-    <input type="checkbox"
-           {% if include_stopped %}checked{% endif %}
-           onchange="window.location='?include_stopped=' + (this.checked ? '1' : '0')">
-    Show stopped
-  </label>
-</div>
+  open();
+}
+</script>
+```
 
+### `control_plane/templates/sessions/_table.html`
+
+```html
+<div id="session-table" data-count="{{ sessions|length }}">
 {% if sessions %}
 <table>
   <thead>
@@ -1982,11 +2872,11 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     <tr>
       <td class="slug">
         {% if s.slug %}
-          {% if s.http_port %}
+          {% if s.http_port and s.status == "running" %}
             <a href="/s/{{ s.slug }}/">{{ s.slug }}</a>
           {% else %}
             {{ s.slug }}
-            <span class="muted">(starting)</span>
+            {% if not s.is_terminal %}<span class="muted">(starting)</span>{% endif %}
           {% endif %}
         {% else %}
           <span class="muted">—</span>
@@ -2007,9 +2897,354 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 {% else %}
 <div class="empty">
   No active sessions.
-  Create one with <code>./scripts/stack.sh create --slug cip_live</code>.
+  <a href="/sessions/new/">Create one</a>, or run
+  <code>./scripts/stack.sh create --slug cip_live</code>.
 </div>
 {% endif %}
+</div>
+```
+
+### `control_plane/templates/sessions/create.html`
+
+```html
+{% extends "base.html" %}
+
+{% block title %}New session · CIP Simulation Platform{% endblock %}
+
+{% block content %}
+<h1>New session</h1>
+<p class="subtitle">Start a simulation and get an OPC UA folder for your PLC.</p>
+
+{% if not simulations %}
+<div class="notice notice-bad">
+  No simulations are available. An operator needs to run
+  <code>python manage.py sync_catalog</code>.
+</div>
+{% else %}
+<form id="create-form" class="panel" novalidate>
+  <div class="field">
+    <label for="simulation_id">Simulation</label>
+    <select id="simulation_id" name="simulation_id">
+      {% for sim in simulations %}
+        <option value="{{ sim.simulation_id }}">{{ sim.display_name }} ({{ sim.version }})</option>
+      {% endfor %}
+    </select>
+    <div class="error" data-for="simulation_id"></div>
+  </div>
+
+  <div class="field">
+    <label for="slug">Slug <span class="muted">(optional)</span></label>
+    <input id="slug" name="slug" placeholder="cip_live" autocomplete="off"
+           pattern="[a-z][a-z0-9_]{0,63}" maxlength="64">
+    <div class="hint">
+      The folder name CODESYS sees. Lowercase letters, digits and
+      underscores, starting with a letter. Without a slug the folder is a
+      random UUID that changes every time.
+    </div>
+    <div class="error" data-for="slug"></div>
+  </div>
+
+  <div class="notice notice-warn">
+    If the slug is already in use, the session currently using it is
+    <strong>stopped</strong> and this one takes over the name.
+  </div>
+
+  <div class="field">
+    <label for="label">Label <span class="muted">(optional)</span></label>
+    <input id="label" name="label" placeholder="Group 3 lab exercise" maxlength="128">
+    <div class="error" data-for="label"></div>
+  </div>
+
+  <div id="form-error" class="notice notice-bad" hidden></div>
+
+  <button id="submit-btn" type="submit" class="btn">Start session</button>
+  <a href="/" class="btn btn-secondary">Cancel</a>
+</form>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var form = document.getElementById('create-form');
+  if (!form) return;
+  var button = document.getElementById('submit-btn');
+  var formError = document.getElementById('form-error');
+
+  function clearErrors() {
+    form.querySelectorAll('.error').forEach(function (el) { el.textContent = ''; });
+    formError.hidden = true;
+  }
+
+  // DRF validation errors come back as {field: ["message", ...]}.
+  // Field errors go under their input; anything else goes on top.
+  function showErrors(data) {
+    var shown = false;
+    Object.keys(data || {}).forEach(function (key) {
+      var el = form.querySelector('.error[data-for="' + key + '"]');
+      var msg = Array.isArray(data[key]) ? data[key].join(' ') : String(data[key]);
+      if (el) {
+        el.textContent = msg;
+        shown = true;
+      } else {
+        formError.textContent = msg;
+        formError.hidden = false;
+        shown = true;
+      }
+    });
+    if (!shown) {
+      formError.textContent = 'Something went wrong. Try again.';
+      formError.hidden = false;
+    }
+  }
+
+  // The API only parses JSON, so the form is sent with fetch instead
+  // of a plain HTML form post.
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    clearErrors();
+    button.disabled = true;
+    button.textContent = 'Starting…';
+
+    var payload = {
+      simulation_id: form.simulation_id.value,
+      slug: form.slug.value.trim(),
+      label: form.label.value.trim()
+    };
+
+    fetch('/api/sessions/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+      .then(function (r) {
+        return r.json().catch(function () { return {}; })
+          .then(function (data) { return { status: r.status, data: data }; });
+      })
+      .then(function (res) {
+        if (res.status === 201 && res.data.token) {
+          window.location = '/sessions/' + res.data.token + '/';
+          return;
+        }
+        if (res.data.token) {
+          // 503 with a session body: the row exists but the start
+          // command never reached the worker pool.
+          res.data = { detail: 'The worker pool could not be reached. ' +
+                               'The session was not started.' };
+        }
+        showErrors(res.data);
+        button.disabled = false;
+        button.textContent = 'Start session';
+      })
+      .catch(function () {
+        showErrors({ detail: 'Could not reach the server.' });
+        button.disabled = false;
+        button.textContent = 'Start session';
+      });
+  });
+})();
+</script>
+{% endblock %}
+```
+
+### `control_plane/templates/sessions/detail.html`
+
+```html
+{% extends "base.html" %}
+
+{% block title %}{{ session.external_id }} · CIP Simulation Platform{% endblock %}
+
+{% block content %}
+<h1>Session <code>{{ session.external_id }}</code></h1>
+<p class="subtitle">
+  {% if session.label %}{{ session.label }} · {% endif %}
+  <span id="live" class="live">connecting…</span>
+</p>
+
+<div class="notice notice-info">
+  <strong>Bookmark this page.</strong> Its address is the key to this
+  session: anyone with the link can see and stop it, and it is not
+  shown anywhere else.
+</div>
+
+<div id="session-panel">
+<div class="panel">
+  <h2>Status</h2>
+  <dl class="facts">
+    <dt>Status</dt>
+    <dd><span class="status status-{{ session.status }}">{{ session.status }}</span></dd>
+    <dt>Simulation</dt>
+    <dd>{{ session.simulation_id }} <span class="muted">{{ session.simulation_version }}</span></dd>
+    <dt>Created</dt>
+    <dd>{{ session.created_at|date:"Y-m-d H:i:s" }}</dd>
+    <dt>Started</dt>
+    <dd>{{ session.started_at|date:"Y-m-d H:i:s"|default:"—" }}</dd>
+    {% if session.stopped_at %}
+    <dt>Stopped</dt>
+    <dd>{{ session.stopped_at|date:"Y-m-d H:i:s" }}</dd>
+    {% endif %}
+    <dt>Dashboard</dt>
+    <dd>
+      {% if session.status == "running" and session.http_port %}
+        <a href="/s/{{ session.external_id }}/" target="_blank" rel="noopener">Open live dashboard ↗</a>
+      {% elif session.is_terminal %}
+        <span class="muted">not available — session has ended</span>
+      {% else %}
+        <span class="muted">available once the session is running</span>
+      {% endif %}
+    </dd>
+  </dl>
+</div>
+
+<div class="panel">
+  <h2>Connect from CODESYS</h2>
+  <dl class="facts">
+    <dt>Endpoint</dt>
+    <dd><code>{% if endpoint_url %}{{ endpoint_url }}{% else %}opc.tcp://&lt;server&gt;:8080/gateway/{% endif %}</code></dd>
+    <dt>Browse to</dt>
+    <dd><code>Objects → Gateway → Sessions → {{ session.external_id }}</code></dd>
+    <dt>Session UUID</dt>
+    <dd><code>{{ session.id }}</code></dd>
+  </dl>
+</div>
+
+<div class="panel">
+  <h2>Stop</h2>
+  {% if session.is_terminal %}
+    <p class="muted">This session has ended.
+      <a href="/sessions/new/">Start a new one</a>.</p>
+  {% else %}
+    <p class="muted">Stops the simulation and frees its ports. Connected
+      PLCs lose the session folder.</p>
+    <button id="stop-btn" class="btn btn-danger"
+            {% if session.status == "stopping" %}disabled{% endif %}>
+      {% if session.status == "stopping" %}Stopping…{% else %}Stop session{% endif %}
+    </button>
+    <div id="stop-error" class="notice notice-bad" hidden></div>
+  {% endif %}
+</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% include "sessions/_live.html" %}
+<script>
+(function () {
+  var sessionId = '{{ session.id }}';
+  var apiUrl = '/api/sessions/{{ session.token }}/';
+
+  // Redraw by re-fetching this same page and swapping the panel, so the
+  // markup above is the only definition of how a session looks.
+  function refresh() {
+    fetch(location.pathname, { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.text() : Promise.reject(r.status); })
+      .then(function (html) {
+        var doc = new DOMParser().parseFromString(html, 'text/html');
+        document.getElementById('session-panel')
+          .replaceWith(doc.getElementById('session-panel'));
+        bindStop();
+      })
+      .catch(function () { /* next change will try again */ });
+  }
+
+  // The REST API has no authentication classes, so DRF does not ask
+  // for a CSRF token: the capability token in the URL is the gate.
+  function bindStop() {
+    var btn = document.getElementById('stop-btn');
+    if (!btn) return;
+    btn.onclick = function () {
+      if (!confirm('Stop this session?')) return;
+      btn.disabled = true;
+      btn.textContent = 'Stopping…';
+      fetch(apiUrl, { method: 'DELETE' })
+        .then(function (r) {
+          if (!r.ok) throw new Error('server answered ' + r.status);
+          refresh();
+        })
+        .catch(function (err) {
+          var box = document.getElementById('stop-error');
+          box.textContent = 'Could not stop the session: ' + err.message;
+          box.hidden = false;
+          btn.disabled = false;
+          btn.textContent = 'Stop session';
+        });
+    };
+  }
+
+  bindStop();
+  connectSessionEvents(function (s) {
+    if (s === null || s.id === sessionId) refresh();
+  });
+})();
+</script>
+{% endblock %}
+```
+
+### `control_plane/templates/sessions/list.html`
+
+```html
+{% extends "base.html" %}
+
+{% block title %}Sessions · CIP Simulation Platform{% endblock %}
+
+{% block content %}
+<h1>Active sessions</h1>
+<p class="subtitle">
+  Each session is reachable through the gateway at
+  <code>{% if endpoint_url %}{{ endpoint_url }}{% else %}opc.tcp://&lt;server&gt;:8080/gateway/{% endif %}</code>.
+</p>
+
+<div class="toolbar">
+  <div class="muted">
+    <span id="session-count">{{ sessions|length }} session{{ sessions|length|pluralize }}</span>
+    &nbsp;·&nbsp;
+    <span id="live" class="live">connecting…</span>
+  </div>
+  <div class="actions">
+    <label>
+      <input type="checkbox"
+             {% if include_stopped %}checked{% endif %}
+             onchange="window.location='?include_stopped=' + (this.checked ? '1' : '0')">
+      Show stopped
+    </label>
+    <a class="btn" href="/sessions/new/">New session</a>
+  </div>
+</div>
+
+{% include "sessions/_table.html" %}
+{% endblock %}
+
+{% block scripts %}
+{% include "sessions/_live.html" %}
+<script>
+(function () {
+  // Any change re-fetches the server-rendered table. Changes often come
+  // in bursts (started + ready within milliseconds), so wait briefly
+  // and redraw once.
+  var pending = null;
+
+  function refresh() {
+    pending = null;
+    fetch('/sessions/rows/' + location.search, { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.text() : Promise.reject(r.status); })
+      .then(function (html) {
+        var box = document.createElement('div');
+        box.innerHTML = html;
+        var fresh = box.firstElementChild;
+        var n = Number(fresh.dataset.count);
+        document.getElementById('session-table').replaceWith(fresh);
+        document.getElementById('session-count').textContent =
+          n + ' session' + (n === 1 ? '' : 's');
+      })
+      .catch(function () { /* next change will try again */ });
+  }
+
+  connectSessionEvents(function () {
+    if (pending) clearTimeout(pending);
+    pending = setTimeout(refresh, 300);
+  });
+})();
+</script>
 {% endblock %}
 ```
 
@@ -2974,7 +4209,8 @@ cmd_up() {
         env REDIS_URL="$REDIS_URL" \
             GATEWAY_PUBLIC_HOST="$GATEWAY_PUBLIC_HOST" \
             PYTHONUNBUFFERED=1 \
-            python manage.py runserver "0.0.0.0:$DJANGO_PORT"
+            uvicorn control_plane.asgi:application \
+                --host 0.0.0.0 --port "$DJANGO_PORT"
 
     start_service event-consumer \
         env REDIS_URL="$REDIS_URL" \
@@ -2987,7 +4223,7 @@ cmd_up() {
     log "waiting for services to become ready..."
 
     wait_for_log worker-pool       '"msg":"daemon ready"'                || { err "worker-pool not ready";    cmd_status; return 1; }
-    wait_for_log django            'Watching for file changes'           || { err "django not ready";         cmd_status; return 1; }
+    wait_for_log django            'Application startup complete'         || { err "django not ready";         cmd_status; return 1; }
     wait_for_log event-consumer    'event consumer started'              || { err "event-consumer not ready"; cmd_status; return 1; }
     wait_for_log gateway           '"msg":"gateway listening"'           || { err "gateway not ready";        cmd_status; return 1; }
 
@@ -5840,7 +7076,7 @@ class SimulationRegistry:
 
   async function poll() {
     try {
-      var r = await fetch('/api/state', { cache: 'no-store' });
+      var r = await fetch('api/state', { cache: 'no-store' });
       if (!r.ok) throw new Error('bad status');
       var data = await r.json();
       lastGood = Date.now();
